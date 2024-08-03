@@ -1,0 +1,86 @@
+{
+	"info": {
+		"_postman_id": "428a1e12-adbf-4e96-8fb5-3d6318056bc8",
+		"name": "Batch_Job",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "27235783"
+	},
+	"item": [
+		{
+			"name": "load rbs-customer",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/batch/rbs-customer",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"batch",
+						"rbs-customer"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "load kyc-indicators",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/batch/kyc-indicators",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"batch",
+						"kyc-indicators"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "load transfer-exclusion",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/batch/transfer-exclusion",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"batch",
+						"transfer-exclusion"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "load sensitive-customer",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/batch/sensitive-customer",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"batch",
+						"sensitive-customer"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
