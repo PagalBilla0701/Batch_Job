@@ -1,226 +1,141 @@
-Sure! Let's modify the code as per your requirement by separating the reader class from the batch service class while maintaining a proper structure for your batch processing job.
+To insert or update data into both databases in your Spring Boot application, you can configure multiple DataSource beans and use Spring's @Transactional to manage transactions across both databases. You will need to define the data sources separately and use JpaTransactionManager for each.
 
-I'll break down your code into three distinct components:
+Here's an outline of what you need to do:
 
-KYC Indicators Reader Class (responsible for reading the KYC data from a CSV file).
-KYC Indicators Batch Configuration (configures the job, step, and reader).
-Batch Service Class (manages scheduling and job execution logic).
-1. KYC Indicators Reader Class (Reader for KYC data)
-java
-Copy code
-package com.ivr.batch.reader;
+1. Define Multiple DataSources in Configuration
 
-import org.springframework.batch.item.file.FlatFileItemReader;
-import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
-import org.springframework.batch.item.file.mapping.DefaultLineMapper;
-import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.FileSystemResource;
-import com.ivr.batch.dto.KycIndicatorsDto;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+You need to define both data sources (for RDC_CVD_APP and CEMS_CC_PRD_PORTAL_APP) in your Spring Boot application.
 
 @Configuration
-public class KycIndicatorsReader {
-
-    private static final Logger log = LoggerFactory.getLogger(KycIndicatorsReader.class);
+public class DataSourceConfig {
 
     @Bean
-    public FlatFileItemReader<KycIndicatorsDto> kycFileReader(String inputFile) {
-        log.info("Starting kycFileReader...");
-        log.info("KYC Indicator Input file is {}", inputFile);
-
-        FlatFileItemReader<KycIndicatorsDto> itemReader = new FlatFileItemReader<>();
-        itemReader.setResource(new FileSystemResource(inputFile));
-        itemReader.setName("kycFileReader");
-        itemReader.setLinesToSkip(1);
-        itemReader.setLineMapper(lineMapper());
-
-        log.info("Reader setup completed.");
-        return itemReader;
+    @Primary
+    @ConfigurationProperties(prefix = "spring.datasource")
+    public DataSource dataSourceRdcCvd() {
+        return DataSourceBuilder.create().build();
     }
 
     @Bean
-    public DefaultLineMapper<KycIndicatorsDto> lineMapper() {
-        log.info("Setting up Line Mapper...");
-
-        DefaultLineMapper<KycIndicatorsDto> lineMapper = new DefaultLineMapper<>();
-        DelimitedLineTokenizer lineTokenizer = new DelimitedLineTokenizer();
-        lineTokenizer.setDelimiter(",");
-        lineTokenizer.setStrict(false);
-        lineTokenizer.setNames("relId", "fKycStatus");
-
-        BeanWrapperFieldSetMapper<KycIndicatorsDto> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
-        fieldSetMapper.setTargetType(KycIndicatorsDto.class);
-
-        lineMapper.setLineTokenizer(lineTokenizer);
-        lineMapper.setFieldSetMapper(fieldSetMapper);
-
-        log.info("Line Mapper setup complete.");
-        return lineMapper;
+    @ConfigurationProperties(prefix = "spring.datasource.my")
+    public DataSource dataSourceCemsCc() {
+        return DataSourceBuilder.create().build();
     }
-}
-2. KYC Indicators Batch Configuration Class
-java
-Copy code
-package com.ivr.batch.config;
-
-import com.ivr.batch.reader.KycIndicatorsReader;
-import com.ivr.batch.dto.KycIndicatorsDto;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
-import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
-import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
-import org.springframework.batch.core.repository.JobRepository;
-import org.springframework.batch.core.transaction.ResourcelessTransactionManager;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.transaction.PlatformTransactionManager;
-
-@Configuration
-public class KycIndicatorsBatchConfig {
-
-    @Autowired
-    private KycIndicatorsReader kycIndicatorsReader;
-
-    @Autowired
-    private KycIndicatorsProcessor kycIndicatorsProcessor; // Assuming you have a processor class
-
-    @Autowired
-    private KycIndicatorsWriter kycIndicatorsWriter; // Assuming you have a writer class
-
-    @Autowired
-    private KycJobListener kycJobListener; // Assuming you have a listener
 
     @Bean
-    public Step kycStep(JobRepository jobRepository, PlatformTransactionManager transactionManager) throws SQLException {
-        return new StepBuilderFactory(jobRepository, transactionManager)
-                .get("kycStep")
-                .<KycIndicatorsDto, CustIndicator>chunk(100)
-                .reader(kycIndicatorsReader.kycFileReader("inputFile"))
-                .processor(kycIndicatorsProcessor)
-                .writer(kycIndicatorsWriter)
-                .listener(kycJobListener)
+    @Primary
+    public LocalContainerEntityManagerFactoryBean entityManagerFactoryRdcCvd(
+            EntityManagerFactoryBuilder builder, @Qualifier("dataSourceRdcCvd") DataSource dataSource) {
+        return builder
+                .dataSource(dataSource)
+                .packages("com.example.package.rdc") // specify the package where RDC_CVD entities are
+                .persistenceUnit("rdcCvd")
                 .build();
     }
 
     @Bean
-    public Job kycIndicatorsJob(Step kycStep, JobRepository jobRepository) {
-        return new JobBuilderFactory(jobRepository)
-                .get("kycIndicatorsJob")
-                .start(kycStep)
+    public LocalContainerEntityManagerFactoryBean entityManagerFactoryCemsCc(
+            EntityManagerFactoryBuilder builder, @Qualifier("dataSourceCemsCc") DataSource dataSource) {
+        return builder
+                .dataSource(dataSource)
+                .packages("com.example.package.cems") // specify the package where CEMS_CC entities are
+                .persistenceUnit("cemsCc")
                 .build();
     }
+
+    @Bean
+    @Primary
+    public PlatformTransactionManager transactionManagerRdcCvd(
+            @Qualifier("entityManagerFactoryRdcCvd") EntityManagerFactory entityManagerFactory) {
+        return new JpaTransactionManager(entityManagerFactory);
+    }
+
+    @Bean
+    public PlatformTransactionManager transactionManagerCemsCc(
+            @Qualifier("entityManagerFactoryCemsCc") EntityManagerFactory entityManagerFactory) {
+        return new JpaTransactionManager(entityManagerFactory);
+    }
 }
-3. Batch Service Class
-java
-Copy code
-package com.ivr.batch.service;
 
-import com.ivr.batch.entity.CemsAuditLog;
-import com.ivr.batch.repo.CemsAuditLogEnityRepository;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobParametersBuilder;
-import org.springframework.batch.core.launch.JobLauncher;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
+2. Specify Repositories for Each DataSource
 
-import java.io.*;
-import java.sql.SQLException;
-import java.util.Date;
+Annotate each repository with @Transactional and specify which transaction manager to use by its transactionManager qualifier. Create separate repositories for each database, for example:
+
+@Repository
+public interface FeeWaiverRepositoryRdcCvd extends JpaRepository<FeeWaiver, String> {
+    Optional<FeeWaiver> findById(String cardNum);
+}
+
+@Repository
+public interface FeeWaiverRepositoryCemsCc extends JpaRepository<FeeWaiverMY, String> {
+    Optional<FeeWaiverMY> findById(String cardNum);
+}
+
+3. Service Layer to Handle Transactions Across Both Databases
+
+To update both databases within the same method, you can mark the method as @Transactional and ensure it operates on both repositories:
 
 @Service
-public class BatchService {
+public class FeeWaiverService {
 
     @Autowired
-    private JobLauncher jobLauncher;
+    private FeeWaiverRepositoryRdcCvd feeWaiverRepositoryRdcCvd;
 
     @Autowired
-    private CemsAuditLogEnityRepository cemsAuditLogEnityRepository;
+    private FeeWaiverRepositoryCemsCc feeWaiverRepositoryCemsCc;
 
-    @Autowired
-    @Qualifier("kycIndicatorsJob")
-    private Job kycIndicatorsJob;
+    @Transactional
+    public Boolean updateFeeWaiver(FeeWaiverDto dto) {
+        String cardNum = dto.getCardNum();
 
-    // Scheduler for KYC Indicator Batch Job
-    @Scheduled(cron = "0 0/1 * * * ?")
-    public void importKycIndicators() throws IOException, SQLException {
-        CemsAuditLog cemsAuditLog = getLatestSubmittedFiles();
-        if (cemsAuditLog == null) {
-            throw new IllegalArgumentException("No valid file found in the database");
+        // Update first database (RDC_CVD_APP)
+        Optional<FeeWaiver> feeWaiverRdc = feeWaiverRepositoryRdcCvd.findById(cardNum);
+        if (feeWaiverRdc.isPresent()) {
+            FeeWaiver dbFeeWaiverRdc = feeWaiverRdc.get();
+            dbFeeWaiverRdc.setAnnualFeeRequested(dto.getAnnualFeeRequested());
+            dbFeeWaiverRdc.setAnnualFeeReqDate(dto.getAnnualFeeRequestedDate());
+            dbFeeWaiverRdc.setLateFeeRequested(dto.getLateFeeRequested());
+            dbFeeWaiverRdc.setLateFeeReqDate(dto.getLateFeeRequestedDate());
+            feeWaiverRepositoryRdcCvd.save(dbFeeWaiverRdc);
         }
 
-        if (cemsAuditLog.getInputfileContent() == null) {
-            throw new IllegalArgumentException("No input file found for the selected record");
+        // Update second database (CEMS_CC_PRD_PORTAL_APP)
+        Optional<FeeWaiverMY> feeWaiverCems = feeWaiverRepositoryCemsCc.findById(cardNum);
+        if (feeWaiverCems.isPresent()) {
+            FeeWaiverMY dbFeeWaiverCems = feeWaiverCems.get();
+            dbFeeWaiverCems.setAnnualFeeRequested(dto.getAnnualFeeRequested());
+            dbFeeWaiverCems.setAnnualFeeReqDate(dto.getAnnualFeeRequestedDate());
+            dbFeeWaiverCems.setLateFeeRequested(dto.getLateFeeRequested());
+            dbFeeWaiverCems.setLateFeeReqDate(dto.getLateFeeRequestedDate());
+            feeWaiverRepositoryCemsCc.save(dbFeeWaiverCems);
         }
 
-        // Convert Blob to a temporary CSV file
-        File tempFile = File.createTempFile("kycData", ".csv");
-        tempFile.deleteOnExit();
-
-        try (InputStream inputStream = cemsAuditLog.getInputfileContent().getBinaryStream();
-             OutputStream outputStream = new FileOutputStream(tempFile)) {
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-        }
-
-        runJob(kycIndicatorsJob, "KYC Indicators", tempFile.getAbsolutePath());
-    }
-
-    private CemsAuditLog getLatestSubmittedFiles() {
-        return cemsAuditLogEnityRepository.findLatestKycIndSubmittedFiles("CustInd", "KYCInd").stream().findFirst().orElse(null);
-    }
-
-    private void runJob(Job job, String jobName, String filePath) {
-        JobParametersBuilder jobParametersBuilder = new JobParametersBuilder()
-                .addLong("startAt", System.currentTimeMillis())
-                .addString("jobName", jobName)
-                .addString("input.file", filePath)
-                .addDate("launchDate", new Date());
-
-        try {
-            JobExecution run = jobLauncher.run(job, jobParametersBuilder.toJobParameters());
-            String status = run.getStatus().toString();
-            if ("COMPLETED".equalsIgnoreCase(status)) {
-                // Update success log
-                updateBatchCompletedStatus(cemsAuditLog.getFileId().toString());
-            } else {
-                updateBatchFailureStatus(cemsAuditLog.getFileId().toString());
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void updateBatchCompletedStatus(String fileId) {
-        // Implementation for updating batch completion status
-    }
-
-    private void updateBatchFailureStatus(String fileId) {
-        // Implementation for updating batch failure status
+        return true;
     }
 }
-Explanation:
-Reader Class (KycIndicatorsReader): Contains the logic for reading the CSV file.
-Batch Config Class (KycIndicatorsBatchConfig): Defines the job and step configuration.
-Batch Service Class (BatchService): Schedules the jobs and handles the job execution logic.
-This separation will make the code more maintainable and modular, enabling easy modifications and testing.
+
+4. Handle Transactions Across Multiple Databases
+
+You can define global transaction behavior with @EnableTransactionManagement and ensure that transactions span both databases if needed.
+
+@SpringBootApplication
+@EnableTransactionManagement
+public class IvrApiApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(IvrApiApplication.class, args);
+    }
+}
+
+Summary:
+
+Define multiple DataSource beans for both databases.
+
+Create repositories for each database.
+
+Use @Transactional in the service layer to manage updates in both databases.
+
+Ensure correct package scanning for entities related to each database.
 
 
-
-
-
-
-
-
-
+This will allow you to update both databases within the same method.
 
