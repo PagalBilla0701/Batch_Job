@@ -1,172 +1,226 @@
-# Batch_Job
+Sure! Let's modify the code as per your requirement by separating the reader class from the batch service class while maintaining a proper structure for your batch processing job.
 
-Here's the revised implementation based on your provided code sample, integrated with the task of reading a CSV file stored in the database as a Blob and writing it to the local file system before processing it in a Spring Batch job.
+I'll break down your code into three distinct components:
 
-The main flow:
-
-A scheduled method (importKycIndicators) runs every minute.
-It fetches the latest submitted file from the database using the CemsAuditLog entity.
-If a valid file is found, it converts the Blob from the database into a local CSV file.
-The batch job (runJob) is executed with the path to the temporary file.
-Revised Code:
+KYC Indicators Reader Class (responsible for reading the KYC data from a CSV file).
+KYC Indicators Batch Configuration (configures the job, step, and reader).
+Batch Service Class (manages scheduling and job execution logic).
+1. KYC Indicators Reader Class (Reader for KYC data)
 java
 Copy code
-import java.io.*;
-import java.sql.Blob;
-import java.sql.SQLException;
-import java.util.List;
+package com.ivr.batch.reader;
+
+import org.springframework.batch.item.file.FlatFileItemReader;
+import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
+import org.springframework.batch.item.file.mapping.DefaultLineMapper;
+import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.FileSystemResource;
+import com.ivr.batch.dto.KycIndicatorsDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+@Configuration
+public class KycIndicatorsReader {
+
+    private static final Logger log = LoggerFactory.getLogger(KycIndicatorsReader.class);
+
+    @Bean
+    public FlatFileItemReader<KycIndicatorsDto> kycFileReader(String inputFile) {
+        log.info("Starting kycFileReader...");
+        log.info("KYC Indicator Input file is {}", inputFile);
+
+        FlatFileItemReader<KycIndicatorsDto> itemReader = new FlatFileItemReader<>();
+        itemReader.setResource(new FileSystemResource(inputFile));
+        itemReader.setName("kycFileReader");
+        itemReader.setLinesToSkip(1);
+        itemReader.setLineMapper(lineMapper());
+
+        log.info("Reader setup completed.");
+        return itemReader;
+    }
+
+    @Bean
+    public DefaultLineMapper<KycIndicatorsDto> lineMapper() {
+        log.info("Setting up Line Mapper...");
+
+        DefaultLineMapper<KycIndicatorsDto> lineMapper = new DefaultLineMapper<>();
+        DelimitedLineTokenizer lineTokenizer = new DelimitedLineTokenizer();
+        lineTokenizer.setDelimiter(",");
+        lineTokenizer.setStrict(false);
+        lineTokenizer.setNames("relId", "fKycStatus");
+
+        BeanWrapperFieldSetMapper<KycIndicatorsDto> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
+        fieldSetMapper.setTargetType(KycIndicatorsDto.class);
+
+        lineMapper.setLineTokenizer(lineTokenizer);
+        lineMapper.setFieldSetMapper(fieldSetMapper);
+
+        log.info("Line Mapper setup complete.");
+        return lineMapper;
+    }
+}
+2. KYC Indicators Batch Configuration Class
+java
+Copy code
+package com.ivr.batch.config;
+
+import com.ivr.batch.reader.KycIndicatorsReader;
+import com.ivr.batch.dto.KycIndicatorsDto;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.transaction.ResourcelessTransactionManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.transaction.PlatformTransactionManager;
+
+@Configuration
+public class KycIndicatorsBatchConfig {
+
+    @Autowired
+    private KycIndicatorsReader kycIndicatorsReader;
+
+    @Autowired
+    private KycIndicatorsProcessor kycIndicatorsProcessor; // Assuming you have a processor class
+
+    @Autowired
+    private KycIndicatorsWriter kycIndicatorsWriter; // Assuming you have a writer class
+
+    @Autowired
+    private KycJobListener kycJobListener; // Assuming you have a listener
+
+    @Bean
+    public Step kycStep(JobRepository jobRepository, PlatformTransactionManager transactionManager) throws SQLException {
+        return new StepBuilderFactory(jobRepository, transactionManager)
+                .get("kycStep")
+                .<KycIndicatorsDto, CustIndicator>chunk(100)
+                .reader(kycIndicatorsReader.kycFileReader("inputFile"))
+                .processor(kycIndicatorsProcessor)
+                .writer(kycIndicatorsWriter)
+                .listener(kycJobListener)
+                .build();
+    }
+
+    @Bean
+    public Job kycIndicatorsJob(Step kycStep, JobRepository jobRepository) {
+        return new JobBuilderFactory(jobRepository)
+                .get("kycIndicatorsJob")
+                .start(kycStep)
+                .build();
+    }
+}
+3. Batch Service Class
+java
+Copy code
+package com.ivr.batch.service;
+
+import com.ivr.batch.entity.CemsAuditLog;
+import com.ivr.batch.repo.CemsAuditLogEnityRepository;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.io.*;
+import java.sql.SQLException;
+import java.util.Date;
+
 @Service
-public class KycIndicatorsImportService {
-
-    private static final Logger log = LoggerFactory.getLogger(KycIndicatorsImportService.class);
-
-    @Autowired
-    private CemsAuditLogRepository cemsAuditLogRepository;
+public class BatchService {
 
     @Autowired
     private JobLauncher jobLauncher;
 
     @Autowired
+    private CemsAuditLogEnityRepository cemsAuditLogEnityRepository;
+
+    @Autowired
+    @Qualifier("kycIndicatorsJob")
     private Job kycIndicatorsJob;
 
-    // Scheduled method to run every minute
-    @Scheduled(cron = "0 0/1 * * * ?")  // Runs every minute
+    // Scheduler for KYC Indicator Batch Job
+    @Scheduled(cron = "0 0/1 * * * ?")
     public void importKycIndicators() throws IOException, SQLException {
         CemsAuditLog cemsAuditLog = getLatestSubmittedFiles();
-
         if (cemsAuditLog == null) {
-            log.error("No valid file found in the database");
             throw new IllegalArgumentException("No valid file found in the database");
         }
 
         if (cemsAuditLog.getInputfileContent() == null) {
-            log.error("No input file found for the selected record");
             throw new IllegalArgumentException("No input file found for the selected record");
         }
 
-        log.info("Converting Blob to file for the reader...");
+        // Convert Blob to a temporary CSV file
         File tempFile = File.createTempFile("kycData", ".csv");
-        tempFile.deleteOnExit(); // Ensures the temp file is deleted after the JVM exits
+        tempFile.deleteOnExit();
 
         try (InputStream inputStream = cemsAuditLog.getInputfileContent().getBinaryStream();
              OutputStream outputStream = new FileOutputStream(tempFile)) {
-
             byte[] buffer = new byte[1024];
             int bytesRead;
-
             while ((bytesRead = inputStream.read(buffer)) != -1) {
                 outputStream.write(buffer, 0, bytesRead);
             }
         }
 
-        log.info("File successfully written to temp directory: {}", tempFile.getAbsolutePath());
-
-        // Now trigger the batch job to process the file
         runJob(kycIndicatorsJob, "KYC Indicators", tempFile.getAbsolutePath());
     }
 
-    // Fetches the latest submitted file from the database
     private CemsAuditLog getLatestSubmittedFiles() {
-        log.info("Fetching the latest submitted file from the database");
-
-        // Assuming "CustInd" and "KYCInd" are the objectType and fileType
-        List<CemsAuditLog> cemsAuditLogList = cemsAuditLogRepository.findLatestKycIndSubmittedFiles("CustInd", "KYCInd");
-
-        if (cemsAuditLogList.isEmpty()) {
-            log.warn("No submitted files found for objectType: CustInd and fileType: KYCInd");
-            return null;
-        }
-
-        log.info("Found submitted file: {}", cemsAuditLogList.get(0).getFileId());
-        return cemsAuditLogList.get(0); // Return the latest file
+        return cemsAuditLogEnityRepository.findLatestKycIndSubmittedFiles("CustInd", "KYCInd").stream().findFirst().orElse(null);
     }
 
-    // Trigger the batch job
     private void runJob(Job job, String jobName, String filePath) {
-        try {
-            JobParameters jobParameters = new JobParametersBuilder()
-                .addString("filePath", filePath)
-                .addLong("time", System.currentTimeMillis())  // Unique parameter to rerun the job
-                .toJobParameters();
+        JobParametersBuilder jobParametersBuilder = new JobParametersBuilder()
+                .addLong("startAt", System.currentTimeMillis())
+                .addString("jobName", jobName)
+                .addString("input.file", filePath)
+                .addDate("launchDate", new Date());
 
-            JobExecution jobExecution = jobLauncher.run(job, jobParameters);
-            log.info("Job {} started with status: {}", jobName, jobExecution.getStatus());
+        try {
+            JobExecution run = jobLauncher.run(job, jobParametersBuilder.toJobParameters());
+            String status = run.getStatus().toString();
+            if ("COMPLETED".equalsIgnoreCase(status)) {
+                // Update success log
+                updateBatchCompletedStatus(cemsAuditLog.getFileId().toString());
+            } else {
+                updateBatchFailureStatus(cemsAuditLog.getFileId().toString());
+            }
         } catch (Exception e) {
-            log.error("Failed to start job {} due to error: {}", jobName, e.getMessage());
+            e.printStackTrace();
         }
     }
+
+    private void updateBatchCompletedStatus(String fileId) {
+        // Implementation for updating batch completion status
+    }
+
+    private void updateBatchFailureStatus(String fileId) {
+        // Implementation for updating batch failure status
+    }
 }
-Breakdown of Key Components:
-importKycIndicators:
+Explanation:
+Reader Class (KycIndicatorsReader): Contains the logic for reading the CSV file.
+Batch Config Class (KycIndicatorsBatchConfig): Defines the job and step configuration.
+Batch Service Class (BatchService): Schedules the jobs and handles the job execution logic.
+This separation will make the code more maintainable and modular, enabling easy modifications and testing.
 
-This is the scheduled method that runs every minute (cron expression: 0 0/1 * * * ?).
-It fetches the latest file from the database, converts the Blob content to a file, and triggers the Spring Batch job to process the file.
-getLatestSubmittedFiles:
 
-This method queries the database to fetch the latest submitted file that matches the required objectType (CustInd) and fileType (KYCInd).
-If no file is found, it logs a warning and returns null.
-runJob:
 
-It triggers the Spring Batch job (kycIndicatorsJob), passing the file path as a job parameter.
-Assumptions:
-The file content is stored in a Blob in the CemsAuditLogEntity table.
-findLatestKycIndSubmittedFiles(String objectType, String fileType) is a method in your repository that fetches the latest file records based on object type and file type.
-You’ve configured the Spring Batch job (kycIndicatorsJob) to accept a file path and process the file from that location.
-Example Repository Query:
-Here’s how you might implement the repository method to fetch the latest file.
 
-java
-Copy code
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
-import java.util.List;
 
-public interface CemsAuditLogRepository extends CrudRepository<CemsAuditLogEntity, Long> {
 
-    @Query("SELECT c FROM CemsAuditLogEntity c WHERE c.objectType = ?1 AND c.fileType = ?2 ORDER BY c.fileId DESC")
-    List<CemsAuditLogEntity> findLatestKycIndSubmittedFiles(String objectType, String fileType);
-}
-Entity Class (CemsAuditLogEntity):
-java
-Copy code
-import javax.persistence.*;
-import java.io.Serializable;
-import java.math.BigDecimal;
-import java.sql.Blob;
 
-@Entity
-@Table(name = "CEMS_LMS_FILE_AUDIT")
-public class CemsAuditLogEntity implements Serializable {
 
-    @Id
-    @Column(name = "ID_FILE")
-    private BigDecimal fileId;
 
-    @Column(name = "X_OBJECT_TYPE")
-    private String objectType;
 
-    @Column(name = "X_FILE_TYPE")
-    private String fileType;
-
-    @Column(name = "X_FILE_NAME")
-    private String fileName;
-
-    @Lob
-    @Column(name = "B_DATA_FILE_CONTENT")
-    private Blob inputfileContent;  // Blob to hold the file content
-
-    // Getters and Setters
-    // ...
-}
-Conclusion:
-This code:
-
-Retrieves the file content from the database.
-Writes it to the file system as a CSV file.
-Schedules the import process to run every minute, triggering a batch job that processes the newly written CSV file.
