@@ -1,93 +1,97 @@
-@Configuration
-public class KycIndicatorsReader {
+@Service
+public class BatchService {
+
+    @Autowired
+    private JobLauncher jobLauncher;
+
+    @Autowired
+    @Qualifier("kycIndicatorsJob")
+    private Job kycIndicatorsJob;
+
+    @Autowired
+    @Qualifier("transferExclusionJob")
+    private Job transferExclusionJob;
+
+    @Autowired
+    @Qualifier("sensitiveCustomerJob")
+    private Job sensitiveCustomerJob;
+
+    @Autowired
+    @Qualifier("rbsCustomerJob")
+    private Job rbsCustomerJob;
 
     @Autowired
     private CemsAuditLogEnityRepository cemsAuditLogEnityRepository;
 
-    @Autowired
-    private CemsAuditLog cemsAuditLog;
-
-    @Bean
-    public FlatFileItemReader<KycIndicatorsDto> kycFileReader() throws SQLException, IOException {
-        FlatFileItemReader<KycIndicatorsDto> itemReader = new FlatFileItemReader<>();
-        
-        // Fetch latest file from DB
-        File latestFile = getLatestFileFromDB();
-        
-        if (latestFile != null) {
-            itemReader.setResource(new FileSystemResource(latestFile));
-        } else {
-            throw new FileNotFoundException("No valid KYC file found in the database");
-        }
-        
-        itemReader.setName("kycFileReader");
-        itemReader.setLinesToSkip(1);
-        itemReader.setLineMapper(lineMapper());
-        
-        return itemReader;
+    // Scheduled to run every 1 minute for KYC Indicators processing
+    @Scheduled(cron = "0 */1 * * * *")
+    public void importKycIndicators() {
+        processJob(kycIndicatorsJob, "KYC Indicators", "KYCInd");
     }
 
-    public LineMapper<KycIndicatorsDto> lineMapper() {
-        DefaultLineMapper<KycIndicatorsDto> lineMapper = new DefaultLineMapper<>();
-        
-        DelimitedLineTokenizer lineTokenizer = new DelimitedLineTokenizer();
-        lineTokenizer.setDelimiter(",");
-        lineTokenizer.setNames("relId", "fKycStatus");
-        lineTokenizer.setStrict(false);
-        
-        BeanWrapperFieldSetMapper<KycIndicatorsDto> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
-        fieldSetMapper.setTargetType(KycIndicatorsDto.class);
-        
-        lineMapper.setLineTokenizer(lineTokenizer);
-        lineMapper.setFieldSetMapper(fieldSetMapper);
-        
-        return lineMapper;
+    // Scheduled to run every 1 minute for Transfer Exclusion processing
+    @Scheduled(cron = "0 */1 * * * *")
+    public void importTransferExclusion() {
+        processJob(transferExclusionJob, "Transfer Exclusion", "TransEx");
     }
 
-    // Method to fetch the latest file from DB, convert the Blob, and return the file.
-    public File getLatestFileFromDB() throws IOException, SQLException {
-        CemsAuditLog latestLogFile = getLatestSubmittedFileFromDB();
-        
-        if (latestLogFile == null || latestLogFile.getInputfileContent() == null) {
-            log.info("No KYC file found in the database");
-            return null;
-        }
-
-        log.info("Converting Blob to file for the reader...");
-        return convertBlobToFile(latestLogFile.getInputfileContent(), "kycData", ".csv");
+    // Scheduled to run every 1 minute for Sensitive Customer processing
+    @Scheduled(cron = "0 */1 * * * *")
+    public void importSensitiveCustomer() {
+        processJob(sensitiveCustomerJob, "Sensitive Customer", "SensCust");
     }
 
-    // Convert Blob content to a File object.
-    private File convertBlobToFile(Blob blob, String prefix, String suffix) throws SQLException, IOException {
-        // Use the temporary directory for storing the converted file
-        File file = File.createTempFile(prefix, suffix);
-        
-        try (InputStream inputStream = blob.getBinaryStream();
-             OutputStream outputStream = new FileOutputStream(file)) {
-            
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
+    // Scheduled to run every 1 minute for RBS Customer processing
+    @Scheduled(cron = "0 */1 * * * *")
+    public void importRbsCustomer() {
+        processJob(rbsCustomerJob, "RBS Customer", "RBSCust");
+    }
+
+    // Method to handle job execution
+    private void processJob(Job job, String jobName, String fileType) {
+        // Step 1: Fetch the submitted file
+        CemsAuditLog submittedFile = fetchSubmittedFile(fileType);
+
+        if (submittedFile != null) {
+            try {
+                // Step 2: Update the status to 'InProgress'
+                updateFileStatus(submittedFile, "InProgress");
+
+                // Prepare job parameters with the file ID and other details
+                JobParameters jobParameters = new JobParametersBuilder()
+                        .addLong("startAt", System.currentTimeMillis())
+                        .addString("fileId", String.valueOf(submittedFile.getFileId()))
+                        .addString("jobName", jobName)
+                        .toJobParameters();
+
+                // Step 3: Trigger the Batch Job
+                JobExecution jobExecution = jobLauncher.run(job, jobParameters);
+
+                // Step 5: On successful completion, update the status to 'Completed'
+                if (jobExecution.getStatus() == BatchStatus.COMPLETED) {
+                    updateFileStatus(submittedFile, "Completed");
+                }
+
+            } catch (JobExecutionAlreadyRunningException | JobRestartException
+                    | JobInstanceAlreadyCompleteException | JobParametersInvalidException e) {
+                // Step 6: Handle failures, update the status to 'Failed'
+                updateFileStatus(submittedFile, "Failed");
+                e.printStackTrace();
             }
-
-            log.info("File created at: {}", file.getAbsolutePath());
+        } else {
+            System.out.println("No submitted file found for processing: " + jobName);
         }
-        
-        return file;
     }
 
-    // Fetch the latest submitted file record from the database
-    public CemsAuditLog getLatestSubmittedFileFromDB() {
-        log.info("Fetching the latest submitted KYC file from the database...");
-        
-        List<CemsAuditLog> cemsAuditLogList = cemsAuditLogEnityRepository.findLatestKycIndSubmittedFiles("CustInd", "KYCInd");
-        if (cemsAuditLogList.isEmpty()) {
-            log.warn("No submitted files found for object type: CustInd and fileType: KYCInd");
-            return null;
-        }
-        
-        log.info("Found submitted file: {}", cemsAuditLogList.get(0).getFileId());
-        return cemsAuditLogList.get(0);
+    // Fetch the latest submitted file based on file type
+    private CemsAuditLog fetchSubmittedFile(String fileType) {
+        return cemsAuditLogEnityRepository.findLatestSubmittedFileByType(fileType)
+                .orElse(null);
+    }
+
+    // Update file status
+    private void updateFileStatus(CemsAuditLog file, String status) {
+        file.setStatus(status);
+        cemsAuditLogEnityRepository.save(file);
     }
 }
