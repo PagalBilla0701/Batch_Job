@@ -1,168 +1,199 @@
-To enhance your FeeWaiverController with logging, error handling, and UUID tracking, I'll show you how to integrate UUID into the request headers, add logging using Slf4j, and update the error handling using a GlobalExceptionHandler. Additionally, I'll add validation for requestId and throw custom exceptions where appropriate.
+@PostMapping("/custIndicator")
+public ResponseEntity<Object> fetchCustIndicators(
+        @RequestParam("relld") String relid,
+        @RequestHeader("UUID") String uuid,
+        @RequestHeader("country") String country) {
 
-Here’s how you can implement this:
-
-1. FeeWaiverController with UUID Logging and Error Handling
-
-package com.sc.rdc.cops.ivrapl.controller;
-
-import com.sc.rdc.cops.ivrapl.dto.FeeWaiverDto;
-import com.sc.rdc.cops.ivrapl.dto.StatusDto;
-import com.sc.rdc.cops.ivrapl.exception.FeePayerControlServiceException;
-import com.sc.rdc.cops.ivrapl.exception.MissingRequestIdException;
-import com.sc.rdc.cops.ivrapl.service.FeeWaiverServiceSelector;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Objects;
-import java.util.UUID;
-
-@Slf4j
-@RestController
-@RequestMapping("/feewaiver")
-public class FeeWaiverController {
-
-    @Autowired
-    private FeeWaiverServiceSelector feeWaiverServiceSelector;
-
-    @PostMapping("/getFeeWaiver")
-    public ResponseEntity<Object> getFeeWaiver(@RequestHeader("country") String country,
-                                               @RequestHeader("requestId") String requestId,
-                                               @RequestBody FeeWaiverDto dto) {
-        validateRequestId(requestId);
-
-        log.info("Request ID: {} - Retrieving fee waiver details for card number: {}", requestId, dto.getCardNum());
-
-        FeeWaiverDto res = feeWaiverServiceSelector.findBynCardnum(dto, country);
-        
-        if (Objects.nonNull(res)) {
-            log.info("Request ID: {} - Fee waiver details found for card number: {}", requestId, dto.getCardNum());
-            return ResponseEntity.ok().body(res);
-        }
-
-        log.warn("Request ID: {} - No fee waiver details found for card number: {}", requestId, dto.getCardNum());
-        return ResponseEntity.notFound().build();
+    ValidateUUID.validateUUID(uuid);
+    log.info("Request received for fetching customer indicators. [UUID: {}, Country: {}]", uuid, country);
+    
+    CustIndicatorDto dto = selector.fetchCustIndicators(relid, country);
+    
+    if (Objects.nonNull(dto)) {
+        return ResponseEntity.ok().body(dto);
     }
+    
+    return ResponseEntity.notFound().build();
+}
 
-    @PatchMapping("/updateFeeWaiver")
-    public ResponseEntity<StatusDto> updateFeeWaiver(@RequestHeader("country") String country,
-                                                     @RequestHeader("requestId") String requestId,
-                                                     @RequestBody FeeWaiverDto dto) {
-        validateRequestId(requestId);
+@PostMapping("/getFeeWaiver")
+public ResponseEntity<Object> getFeeWaiver(
+        @RequestHeader("country") String country, 
+        @RequestHeader("UUID") String uuid,
+        @RequestBody FeeWaiverDto dto) {
 
-        log.info("Request ID: {} - Updating fee waiver for card number: {}", requestId, dto.getCardNum());
+    ValidateUUID.validateUUID(uuid);
+    log.info("Request received for fetching fee waiver details. [UUID: {}, Country: {}, Card Number: {}]", uuid, country, dto.getCardNum());
+    
+    FeewaiverDto res = feewaiverServiceSelector.findBynCardnum(dto, country);
+    
+    if (Objects.nonNull(res)) {
+        log.info("Fee waiver details found. [UUID: {}, Card Number: {}]", uuid, dto.getCardNum());
+        return ResponseEntity.ok().body(res);
+    }
+    
+    log.warn("No fee waiver details found. [UUID: {}, Card Number: {}]", uuid, dto.getCardNum());
+    return ResponseEntity.notFound().build();
+}
 
-        StatusDto statusDto = new StatusDto();
-        Boolean updated = feeWaiverServiceSelector.updateFeeWaiver(dto, country);
+@PatchMapping("/updateFeelWaiver")
+public ResponseEntity<StatusDto> updateFeeWaiver(
+        @RequestHeader("country") String country,
+        @RequestHeader("UUID") String uuid, 
+        @RequestBody FeeWaiverDto dto) {
+    
+    ValidateUUID.validateUUID(uuid);
+    log.info("Request received for updating fee waiver. [UUID: {}, Card Number: {}]", uuid, dto.getCardNum());
 
-        if (updated) {
-            statusDto.setStatus("Success");
-            log.info("Request ID: {} - Fee waiver successfully updated for card number: {}", requestId, dto.getCardNum());
-            return ResponseEntity.ok().body(statusDto);
-        }
-
-        statusDto.setStatus("Failure");
-        log.warn("Request ID: {} - Failed to update fee waiver for card number: {}", requestId, dto.getCardNum());
+    StatusDto statusDto = new StatusDto();
+    Boolean updated = feeWaiverServiceSelector.updateFeeWaiver(dto, country);
+    
+    if (updated) {
+        statusDto.setStatus("Success");
         return ResponseEntity.ok().body(statusDto);
     }
-
-    // Validate if requestId is present
-    private void validateRequestId(String requestId) {
-        if (Objects.isNull(requestId) || requestId.isEmpty()) {
-            log.error("Request is missing requestId header.");
-            throw new MissingRequestIdException("Missing requestId in request headers.");
-        }
-    }
-}
-
-2. GlobalExceptionHandler
-
-package com.sc.rdc.cops.ivrapl.exception;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ControllerAdvice;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RequestHeader;
-
-@ControllerAdvice
-public class GlobalExceptionHandler {
-
-    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<String> handleException(Exception ex, @RequestHeader("requestId") String requestId) {
-        logger.error("Error occurred: [requestId: {}] - {}", requestId, ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                             .body("An error occurred while processing the request. Please try again later.");
-    }
-
-    @ExceptionHandler(FeePayerControlServiceException.class)
-    public ResponseEntity<String> handleFeePayerControlServiceException(FeePayerControlServiceException ex, 
-                                                                        @RequestHeader("requestId") String requestId) {
-        logger.warn("FeePayerControlServiceException: [requestId: {}] - {}", requestId, ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                             .body("An error occurred in FeePayerControlService: " + ex.getMessage());
-    }
-
-    @ExceptionHandler(MissingRequestIdException.class)
-    public ResponseEntity<String> handleMissingRequestIdException(MissingRequestIdException ex) {
-        logger.error("Missing requestId in request headers: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                             .body("Missing requestId in the request headers.");
-    }
-}
-
-3. Custom Exceptions
-
-a. FeePayerControlServiceException
-
-package com.sc.rdc.cops.ivrapl.exception;
-
-public class FeePayerControlServiceException extends RuntimeException {
     
-    public FeePayerControlServiceException(String message) {
-        super(message);
+    statusDto.setStatus("Failure");
+    return ResponseEntity.ok().body(statusDto);
+}
+
+@PatchMapping("/update")
+public ResponseEntity<StatusDto> updateIVRCallActivity(
+        @RequestParam("refNo") Long refNo,
+        @RequestHeader("UUID") String uuid, 
+        @RequestHeader("country") String country,
+        @RequestBody SecondFactorAuthentication secondFactorAuthentication) {
+    
+    ValidateUUID.validateUUID(uuid);
+    log.info("Request received for updating IVR call activity. [UUID: {}, RefNo: {}]", uuid, refNo);
+
+    StatusDto statusDto = new StatusDto();
+    boolean updated = selector.updateIVRCallActivity(refNo, country, secondFactorAuthentication);
+    
+    if (updated) {
+        statusDto.setStatus("Success");
+        return ResponseEntity.ok().body(statusDto);
     }
     
-    public FeePayerControlServiceException(String message, Throwable cause) {
-        super(message, cause);
-    }
+    statusDto.setStatus("Failure");
+    return ResponseEntity.ok().body(statusDto);
 }
 
-b. MissingRequestIdException
+@PostMapping("/ivrInsert")
+public ResponseEntity<Object> insertIvrCallReport(
+        @RequestBody IvrCallReportDto ivrCallReportDto, 
+        @RequestHeader("UUID") String uuid,
+        @RequestHeader("country") String country) {
 
-package com.sc.rdc.cops.ivrapl.exception;
+    ValidateUUID.validateUUID(uuid);
+    log.info("Request received for inserting IVR call report. [UUID: {}, Country: {}]", uuid, country);
 
-public class MissingRequestIdException extends RuntimeException {
-
-    public MissingRequestIdException(String message) {
-        super(message);
+    StatusDto statusDto = new StatusDto();
+    Boolean created = selector.insertIvrCallReport(country, ivrCallReportDto);
+    
+    if (created) {
+        statusDto.setStatus("Success");
+        return ResponseEntity.ok().body(statusDto);
     }
-
-    public MissingRequestIdException(String message, Throwable cause) {
-        super(message, cause);
-    }
+    
+    statusDto.setStatus("Failure");
+    return ResponseEntity.ok().body(statusDto);
 }
 
-Explanation:
+@PostMapping("/acdInsert")
+public ResponseEntity<Object> insertAcdCallReport(
+        @RequestBody AcdCallReportDto acdCallReportDto, 
+        @RequestHeader("UUID") String uuid,
+        @RequestHeader("country") String country) {
 
-1. UUID in Request Header: Each request now requires a requestId header, which is validated to ensure every request can be traced.
+    ValidateUUID.validateUUID(uuid);
+    log.info("Request received for inserting ACD call report. [UUID: {}, Country: {}]", uuid, country);
 
+    StatusDto statusDto = new StatusDto();
+    Boolean created = selector.insertAcdCallReport(country, acdCallReportDto);
+    
+    if (created) {
+        statusDto.setStatus("Success");
+        return ResponseEntity.ok().body(statusDto);
+    }
+    
+    statusDto.setStatus("Failure");
+    return ResponseEntity.ok().body(statusDto);
+}
 
-2. Logging: Logging is done using Slf4j with info, warn, and error levels for different scenarios.
+@PostMapping("/insertCallBack")
+public ResponseEntity<Object> insertNtbCallBack(
+        @RequestBody NtbCallBackDto ntbCallBackDto,
+        @RequestHeader("UUID") String uuid, 
+        @RequestHeader("country") String country) {
 
+    ValidateUUID.validateUUID(uuid);
+    log.info("Request received for inserting NTB callback. [UUID: {}, Country: {}]", uuid, country);
 
-3. Global Exception Handling: The GlobalExceptionHandler captures general exceptions and custom exceptions, ensuring consistent error responses.
+    StatusDto statusDto = new StatusDto();
+    Boolean created = ntbCallBackServiceSelector.insertNtbCallBack(ntbCallBackDto, country);
+    
+    if (created) {
+        statusDto.setStatus("Success");
+        return ResponseEntity.ok().body(statusDto);
+    }
+    
+    statusDto.setStatus("Failure");
+    return ResponseEntity.ok().body(statusDto);
+}
 
+@PostMapping("/getLanguage")
+public ResponseEntity<Object> getPreferredLanguageByRelId(
+        @RequestParam("relId") String relId,
+        @RequestHeader("UUID") String uuid, 
+        @RequestHeader("country") String country) {
 
-4. Custom Exceptions: FeePayerControlServiceException is used for specific service-level errors, while MissingRequestIdException ensures the requestId is always present.
+    ValidateUUID.validateUUID(uuid);
+    log.info("Request received for fetching preferred language. [UUID: {}, Country: {}, RelId: {}]", uuid, country, relId);
+    
+    PreferredLanguageDto preferredLang = preferredLanguageServiceSelector.getPreferredLanguageByRelId(relId, country);
+    
+    if (Objects.nonNull(preferredLang)) {
+        return ResponseEntity.ok().body(preferredLang);
+    }
+    
+    return ResponseEntity.notFound().build();
+}
 
+@PostMapping("/saveLang")
+public ResponseEntity<Object> insertPreferredLanguage(
+        @RequestBody PreferredLanguageDto preferredLanguage,
+        @RequestHeader("UUID") String uuid, 
+        @RequestHeader("country") String country) {
 
+    ValidateUUID.validateUUID(uuid);
+    log.info("Request received for inserting preferred language. [UUID: {}, Country: {}]", uuid, country);
 
-You can now track each request using the UUID and effectively handle exceptions in the system.
+    String response = preferredLanguageServiceSelector.insertPreferredLanguage(preferredLanguage, country);
+    
+    StatusDto dto = new StatusDto();
+    dto.setStatus(response);
+    
+    return ResponseEntity.ok().body(dto);
+}
 
+@DeleteMapping("/delete")
+public ResponseEntity<Object> deletePreferredLanguageByRelId(
+        @RequestParam("relId") String relId,
+        @RequestHeader("UUID") String uuid, 
+        @RequestHeader("country") String country) {
+
+    ValidateUUID.validateUUID(uuid);
+    log.info("Request received for deleting preferred language. [UUID: {}, Country: {}, RelId: {}]", uuid, country, relId);
+
+    String response = preferredLanguageServiceSelector.deletePreferredLanguageByRelId(relId, country);
+    
+    StatusDto dto = new StatusDto();
+    dto.setStatus(response);
+    
+    if (response.contains("No")) {
+        return ResponseEntity.badRequest().body(dto);
+    } else {
+        return ResponseEntity.ok().body(dto);
+    }
+}
