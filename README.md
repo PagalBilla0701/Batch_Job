@@ -1,199 +1,25 @@
-@PostMapping("/custIndicator")
-public ResponseEntity<Object> fetchCustIndicators(
-        @RequestParam("relld") String relid,
-        @RequestHeader("UUID") String uuid,
-        @RequestHeader("country") String country) {
+Here’s the revised version of your email, incorporating the mention that all required documents have been provided:
 
-    ValidateUUID.validateUUID(uuid);
-    log.info("Request received for fetching customer indicators. [UUID: {}, Country: {}]", uuid, country);
-    
-    CustIndicatorDto dto = selector.fetchCustIndicators(relid, country);
-    
-    if (Objects.nonNull(dto)) {
-        return ResponseEntity.ok().body(dto);
-    }
-    
-    return ResponseEntity.notFound().build();
-}
 
-@PostMapping("/getFeeWaiver")
-public ResponseEntity<Object> getFeeWaiver(
-        @RequestHeader("country") String country, 
-        @RequestHeader("UUID") String uuid,
-        @RequestBody FeeWaiverDto dto) {
+---
 
-    ValidateUUID.validateUUID(uuid);
-    log.info("Request received for fetching fee waiver details. [UUID: {}, Country: {}, Card Number: {}]", uuid, country, dto.getCardNum());
-    
-    FeewaiverDto res = feewaiverServiceSelector.findBynCardnum(dto, country);
-    
-    if (Objects.nonNull(res)) {
-        log.info("Fee waiver details found. [UUID: {}, Card Number: {}]", uuid, dto.getCardNum());
-        return ResponseEntity.ok().body(res);
-    }
-    
-    log.warn("No fee waiver details found. [UUID: {}, Card Number: {}]", uuid, dto.getCardNum());
-    return ResponseEntity.notFound().build();
-}
+Subject: Medical Emergency and Upcoming Surgery
 
-@PatchMapping("/updateFeelWaiver")
-public ResponseEntity<StatusDto> updateFeeWaiver(
-        @RequestHeader("country") String country,
-        @RequestHeader("UUID") String uuid, 
-        @RequestBody FeeWaiverDto dto) {
-    
-    ValidateUUID.validateUUID(uuid);
-    log.info("Request received for updating fee waiver. [UUID: {}, Card Number: {}]", uuid, dto.getCardNum());
+Dear Ponepriya,
 
-    StatusDto statusDto = new StatusDto();
-    Boolean updated = feeWaiverServiceSelector.updateFeeWaiver(dto, country);
-    
-    if (updated) {
-        statusDto.setStatus("Success");
-        return ResponseEntity.ok().body(statusDto);
-    }
-    
-    statusDto.setStatus("Failure");
-    return ResponseEntity.ok().body(statusDto);
-}
+I hope this message finds you well. I am writing to inform you that I am dealing with a medical emergency concerning my ear and nose. After consulting with my doctor, it has been advised that I undergo surgery on Monday, 14th October.
 
-@PatchMapping("/update")
-public ResponseEntity<StatusDto> updateIVRCallActivity(
-        @RequestParam("refNo") Long refNo,
-        @RequestHeader("UUID") String uuid, 
-        @RequestHeader("country") String country,
-        @RequestBody SecondFactorAuthentication secondFactorAuthentication) {
-    
-    ValidateUUID.validateUUID(uuid);
-    log.info("Request received for updating IVR call activity. [UUID: {}, RefNo: {}]", uuid, refNo);
+Following the surgery, my doctor has recommended a recovery period of one week to ensure proper healing. Therefore, I will need to take time off from work starting from 14th October until 21st October.
 
-    StatusDto statusDto = new StatusDto();
-    boolean updated = selector.updateIVRCallActivity(refNo, country, secondFactorAuthentication);
-    
-    if (updated) {
-        statusDto.setStatus("Success");
-        return ResponseEntity.ok().body(statusDto);
-    }
-    
-    statusDto.setStatus("Failure");
-    return ResponseEntity.ok().body(statusDto);
-}
+I sincerely apologize for any inconvenience this may cause and appreciate your understanding and support during this time. All required documents, including the prescription, have been provided for your reference. I will also submit any additional documents post-surgery if needed.
 
-@PostMapping("/ivrInsert")
-public ResponseEntity<Object> insertIvrCallReport(
-        @RequestBody IvrCallReportDto ivrCallReportDto, 
-        @RequestHeader("UUID") String uuid,
-        @RequestHeader("country") String country) {
+Thank you for your consideration.
 
-    ValidateUUID.validateUUID(uuid);
-    log.info("Request received for inserting IVR call report. [UUID: {}, Country: {}]", uuid, country);
+Best regards,
+Kaushik Singh
 
-    StatusDto statusDto = new StatusDto();
-    Boolean created = selector.insertIvrCallReport(country, ivrCallReportDto);
-    
-    if (created) {
-        statusDto.setStatus("Success");
-        return ResponseEntity.ok().body(statusDto);
-    }
-    
-    statusDto.setStatus("Failure");
-    return ResponseEntity.ok().body(statusDto);
-}
 
-@PostMapping("/acdInsert")
-public ResponseEntity<Object> insertAcdCallReport(
-        @RequestBody AcdCallReportDto acdCallReportDto, 
-        @RequestHeader("UUID") String uuid,
-        @RequestHeader("country") String country) {
+---
 
-    ValidateUUID.validateUUID(uuid);
-    log.info("Request received for inserting ACD call report. [UUID: {}, Country: {}]", uuid, country);
+This version clarifies that all necessary documents have already been provided. Let me know if you need further changes!
 
-    StatusDto statusDto = new StatusDto();
-    Boolean created = selector.insertAcdCallReport(country, acdCallReportDto);
-    
-    if (created) {
-        statusDto.setStatus("Success");
-        return ResponseEntity.ok().body(statusDto);
-    }
-    
-    statusDto.setStatus("Failure");
-    return ResponseEntity.ok().body(statusDto);
-}
-
-@PostMapping("/insertCallBack")
-public ResponseEntity<Object> insertNtbCallBack(
-        @RequestBody NtbCallBackDto ntbCallBackDto,
-        @RequestHeader("UUID") String uuid, 
-        @RequestHeader("country") String country) {
-
-    ValidateUUID.validateUUID(uuid);
-    log.info("Request received for inserting NTB callback. [UUID: {}, Country: {}]", uuid, country);
-
-    StatusDto statusDto = new StatusDto();
-    Boolean created = ntbCallBackServiceSelector.insertNtbCallBack(ntbCallBackDto, country);
-    
-    if (created) {
-        statusDto.setStatus("Success");
-        return ResponseEntity.ok().body(statusDto);
-    }
-    
-    statusDto.setStatus("Failure");
-    return ResponseEntity.ok().body(statusDto);
-}
-
-@PostMapping("/getLanguage")
-public ResponseEntity<Object> getPreferredLanguageByRelId(
-        @RequestParam("relId") String relId,
-        @RequestHeader("UUID") String uuid, 
-        @RequestHeader("country") String country) {
-
-    ValidateUUID.validateUUID(uuid);
-    log.info("Request received for fetching preferred language. [UUID: {}, Country: {}, RelId: {}]", uuid, country, relId);
-    
-    PreferredLanguageDto preferredLang = preferredLanguageServiceSelector.getPreferredLanguageByRelId(relId, country);
-    
-    if (Objects.nonNull(preferredLang)) {
-        return ResponseEntity.ok().body(preferredLang);
-    }
-    
-    return ResponseEntity.notFound().build();
-}
-
-@PostMapping("/saveLang")
-public ResponseEntity<Object> insertPreferredLanguage(
-        @RequestBody PreferredLanguageDto preferredLanguage,
-        @RequestHeader("UUID") String uuid, 
-        @RequestHeader("country") String country) {
-
-    ValidateUUID.validateUUID(uuid);
-    log.info("Request received for inserting preferred language. [UUID: {}, Country: {}]", uuid, country);
-
-    String response = preferredLanguageServiceSelector.insertPreferredLanguage(preferredLanguage, country);
-    
-    StatusDto dto = new StatusDto();
-    dto.setStatus(response);
-    
-    return ResponseEntity.ok().body(dto);
-}
-
-@DeleteMapping("/delete")
-public ResponseEntity<Object> deletePreferredLanguageByRelId(
-        @RequestParam("relId") String relId,
-        @RequestHeader("UUID") String uuid, 
-        @RequestHeader("country") String country) {
-
-    ValidateUUID.validateUUID(uuid);
-    log.info("Request received for deleting preferred language. [UUID: {}, Country: {}, RelId: {}]", uuid, country, relId);
-
-    String response = preferredLanguageServiceSelector.deletePreferredLanguageByRelId(relId, country);
-    
-    StatusDto dto = new StatusDto();
-    dto.setStatus(response);
-    
-    if (response.contains("No")) {
-        return ResponseEntity.badRequest().body(dto);
-    } else {
-        return ResponseEntity.ok().body(dto);
-    }
-}
