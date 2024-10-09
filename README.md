@@ -1,22 +1,28 @@
 @Override
-public boolean updateIVRCallActivity(Long refNo, String country, SecondFactorAuthentication secondFactorAuthentication) {
+public Boolean insertNtbCallBack(NtbCallBackDto dto) {
+    log.info("Entering insertNtbCallBack method in SG callback class");
 
-    log.info("Attempting to update IVRCallActivity for RefNo: {} and Country: {}", refNo, country);
+    Date currentDate = Calendar.getInstance().getTime();
+    NtbCallback dbEntity = new NtbCallback();
 
-    Optional<IVRCallActivity> optionalRecord = ivrCallActivityRepository.findByRefNoAndCountryCode(refNo, country);
+    log.debug("Setting values from NtbCallBackDto to NtbCallback entity");
+    dbEntity.setXCli(dto.getCli());
+    dbEntity.setXNtbMenu(dto.getNtbMenu());
+    dbEntity.setXCallbackNum(dto.getCallBackNumber());
+    dbEntity.setFSmsTriggered(dto.getSmsTriggered());
+    dbEntity.setXInteractionId(dto.getInteractionId());
+    dbEntity.setXDnis(dto.getDnis());
+    dbEntity.setDCallDtTime(dto.getCallDateTime());
+    dbEntity.setDCreat(currentDate);
+    dbEntity.setDUpd(currentDate);
+    dbEntity.setXCreat("IVR_USER");
+    dbEntity.setXUpd("IVR_USER");
 
-    if (optionalRecord.isPresent()) {
-        IVRCallActivity record = optionalRecord.get();
-        log.info("Record found for RefNo: {}, updating second factor authentication.", refNo);
+    log.debug("Saving the NtbCallback entity to the database");
+    NtbCallback saved = ntbCallbackRepository.save(dbEntity);
 
-        record.setCustomField2(secondFactorAuthentication.getSecondFactorAuthentication());
-        ivrCallActivityRepository.save(record);
+    boolean isSaved = Objects.nonNull(saved);
+    log.info("Insert operation was {}", isSaved ? "successful" : "unsuccessful");
 
-        log.info("Successfully updated IVRCallActivity for RefNo: {}", refNo);
-        return true;
-
-    } else {
-        log.warn("No record found for RefNo: {} and Country: {}", refNo, country);
-        return false;
-    }
+    return isSaved;
 }
