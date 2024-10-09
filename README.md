@@ -1,28 +1,22 @@
 @Override
-public CustIndicatorDto fetchCustIndicators(String relId) {
+public boolean updateIVRCallActivity(Long refNo, String country, SecondFactorAuthentication secondFactorAuthentication) {
 
-    log.info("Fetching CustIndicators for REL_ID: {}", relId);
+    log.info("Attempting to update IVRCallActivity for RefNo: {} and Country: {}", refNo, country);
 
-    Optional<CustIndicatorMY> optionalCustIndicator = custIndicatorRepository.findById(relId);
-    Optional<RepeatCallerMY> optionalRepeatCaller = repeatCallerRepository.findById(relId);
+    Optional<IVRCallActivity> optionalRecord = ivrCallActivityRepository.findByRefNoAndCountryCode(refNo, country);
 
-    log.info("Customer {} present in cust indicator repo? {}", relId, optionalCustIndicator.isPresent());
-    log.info("Customer {} present in repeat caller repo? {}", relId, optionalRepeatCaller.isPresent());
+    if (optionalRecord.isPresent()) {
+        IVRCallActivity record = optionalRecord.get();
+        log.info("Record found for RefNo: {}, updating second factor authentication.", refNo);
 
-    if (optionalCustIndicator.isPresent() && optionalRepeatCaller.isPresent()) {
-        RepeatCallerMY repeatCaller = optionalRepeatCaller.get();
-        CustIndicatorMY custIndicator = optionalCustIndicator.get();
+        record.setCustomField2(secondFactorAuthentication.getSecondFactorAuthentication());
+        ivrCallActivityRepository.save(record);
 
-        CustIndicatorDto dto = new CustIndicatorDto();
-        dto.setKycDeficient(custIndicator.getfKycStatus().equalsIgnoreCase("Y") ? "Yes" : "No");
-        dto.setSensitiveCustomer(custIndicator.getfSensitiveCust().equalsIgnoreCase("Y") ? "Yes" : "No");
-        dto.setTransferExclusion(custIndicator.getfTransferExclusion().equalsIgnoreCase("Y") ? "Yes" : "No");
-        dto.setRepeatCaller(repeatCaller.getfRepeat().equalsIgnoreCase("YES") ? "Yes" : "No");
+        log.info("Successfully updated IVRCallActivity for RefNo: {}", refNo);
+        return true;
 
-        log.info("Successfully fetched CustIndicators for REL_ID: {}", relId);
-        return dto;
+    } else {
+        log.warn("No record found for RefNo: {} and Country: {}", refNo, country);
+        return false;
     }
-
-    log.warn("Customer {} not found in either cust indicator or repeat caller repositories", relId);
-    return null;
 }
