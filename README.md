@@ -1,69 +1,28 @@
 @Override
-public Boolean insertIvrCallReport(String country, IvrCallReportDto dto) {
+public CustIndicatorDto fetchCustIndicators(String relId) {
 
-    log.info("Inserting IVR Call Report for country: {}, UCID: {}", country, dto.getUcid());
+    log.info("Fetching CustIndicators for REL_ID: {}", relId);
 
-    Boolean inserted = false;
-    Date currentDate = Calendar.getInstance().getTime();
+    Optional<CustIndicatorMY> optionalCustIndicator = custIndicatorRepository.findById(relId);
+    Optional<RepeatCallerMY> optionalRepeatCaller = repeatCallerRepository.findById(relId);
 
-    IvrCallReportMY report = ivrCallReportMapper.mapToIvrCallReportTable(dto);
-    report.setXCreat("IVR");
-    report.setDCreat(currentDate);
-    report.setDUpd(currentDate);
-    report.setXUpd("IVR");
-    report.setFullMenuTraversal(null); // Explicitly set
+    log.info("Customer {} present in cust indicator repo? {}", relId, optionalCustIndicator.isPresent());
+    log.info("Customer {} present in repeat caller repo? {}", relId, optionalRepeatCaller.isPresent());
 
-    log.info("Saving IVR Call Report for UCID: {}", dto.getUcid());
-    IvrCallReportMY saveReport = ivrRepo.save(report);
+    if (optionalCustIndicator.isPresent() && optionalRepeatCaller.isPresent()) {
+        RepeatCallerMY repeatCaller = optionalRepeatCaller.get();
+        CustIndicatorMY custIndicator = optionalCustIndicator.get();
 
-    FullMenuTraversalMY menuTraversal = new FullMenuTraversalMY();
-    menuTraversal.setUcid(dto.getUcid());
-    menuTraversal.setXCreat("IVR");
-    menuTraversal.setDCreat(currentDate);
-    menuTraversal.setDUpd(currentDate);
-    menuTraversal.setXUpd("IVR");
+        CustIndicatorDto dto = new CustIndicatorDto();
+        dto.setKycDeficient(custIndicator.getfKycStatus().equalsIgnoreCase("Y") ? "Yes" : "No");
+        dto.setSensitiveCustomer(custIndicator.getfSensitiveCust().equalsIgnoreCase("Y") ? "Yes" : "No");
+        dto.setTransferExclusion(custIndicator.getfTransferExclusion().equalsIgnoreCase("Y") ? "Yes" : "No");
+        dto.setRepeatCaller(repeatCaller.getfRepeat().equalsIgnoreCase("YES") ? "Yes" : "No");
 
-    if (dto.getFullMenuTraversal() != null && !dto.getFullMenuTraversal().isEmpty()) {
-        Map<String, String> menus = dto.getFullMenuTraversal();
-        setMenusValue(menuTraversal, menus);
+        log.info("Successfully fetched CustIndicators for REL_ID: {}", relId);
+        return dto;
     }
 
-    log.info("Saving Full Menu Traversal for UCID: {}", dto.getUcid());
-    FullMenuTraversalMY save = fullMenuTraversalRepo.save(menuTraversal);
-
-    if (saveReport != null && save != null) {
-        inserted = true;
-        log.info("IVR Call Report and Full Menu Traversal saved successfully for UCID: {}", dto.getUcid());
-    } else {
-        log.warn("Failed to save IVR Call Report or Full Menu Traversal for UCID: {}", dto.getUcid());
-    }
-
-    return inserted;
-}
-
-@Override
-public Boolean insertAcdCallReport(String country, AcdCallReportDto dto) {
-
-    log.info("Inserting ACD Call Report for country: {}, UCID: {}", country, dto.getUcid());
-
-    Boolean inserted = false;
-    Date currentDate = Calendar.getInstance().getTime();
-
-    AcdCallReportMY report = acdCallReportMapper.mapToAcdCallReport(dto);
-    report.setXCreat("IVR");
-    report.setDCreat(currentDate);
-    report.setDUpd(currentDate);
-    report.setXUpd("IVR");
-
-    log.info("Saving ACD Call Report for UCID: {}", dto.getUcid());
-    AcdCallReportMY save = acdRepo.save(report);
-
-    if (Objects.nonNull(save)) {
-        inserted = true;
-        log.info("ACD Call Report saved successfully for UCID: {}", dto.getUcid());
-    } else {
-        log.warn("Failed to save ACD Call Report for UCID: {}", dto.getUcid());
-    }
-
-    return inserted;
+    log.warn("Customer {} not found in either cust indicator or repeat caller repositories", relId);
+    return null;
 }
