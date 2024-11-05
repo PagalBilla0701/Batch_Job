@@ -1,59 +1,102 @@
-Here is a corrected version of your loadNewCallActivityGenesys_test method. I've added missing semicolons, corrected typos in variable names, and adjusted the Mockito syntax. Let me know if this looks accurate:
+Creating a test method for this code will require defining tests for several parts of the logic, including validations, exception handling, and data processing. Here is a sample test method for one part of the code, specifically testing the authorization logic and verification steps, as this is a key step that impacts the rest of the process.
 
-@Test
-public void loadNewCallActivityGenesys_test() throws Exception {
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-    // Initialize customer and account maps with test data
-    Map<String, String> customerMap = new HashMap<>();
-    customerMap.put("fullName", "xxxx");
-    customerMap.put("gender", "F");
-    customerMap.put("genderDesc", "Female");
-    customerMap.put("staffCategoryCode", "01");
-    customerMap.put("staffCategoryDesc", "STAFF");
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
-    Map<String, String> accountMap = new HashMap<>();
-    accountMap.put("custAcctProdType", "Savings Account");
-    accountMap.put("custAcctIdentifier", "ACCT");
-    accountMap.put("currencyCode", "SGD");
+class CallActivityServiceTest {
 
-    // Set up mocks
-    Mockito.when(callActivityService.getCustomerInfo("SG", "A0198678")).thenReturn(customerMap);
-    Mockito.when(callActivityService.isSoftTokenEnableForCountry("SG")).thenReturn("true");
-    Mockito.when(callActivityService.identifyAccountOrCustomerId("SG", "123456790")).thenReturn(accountMap);
-    Mockito.when(callActivityAction.saveCallActivity(ArgumentMatchers.any())).thenReturn("SG23456789");
-    Mockito.when(callActivityAction.getCallActivityByRefNo("5623456789", "SGP")).thenReturn(call);
-    Mockito.doNothing().when(callActivityService).addToRecentItem(call, login);
-    // Uncomment if needed for further verification
-    // Mockito.when(callActivityAction.saveGenCallActivity(ArgumentMatchers.any())).thenReturn(genCall);
-    Mockito.when(callActivityService.renderCallInfo(call, false, "SG", login)).thenReturn(sectionResponse);
+    @InjectMocks
+    private CallActivityService callActivityService;  // Replace with the actual service class
 
-    // Execute the test method
-    controller.loadNewCallActivityGenesys(login, "TPIN", model, genesysData);
+    @Mock
+    private LoginService loginService;                // Replace with the actual login service
+    @Mock
+    private MenuAccessRepository menuAccessRepository; 
+    @Mock
+    private CallActivityAction callActivityAction;
+    @Mock
+    private MessageHelper messageHelper;
 
-    // Verify interactions with mocks
-    verify(callActivityService, times(2)).getCustomerInfo("SG", "A0198678");
-    verify(callActivityService).isSoftTokenEnableForCountry("SG");
-    verify(callActivityService, atLeast(1)).identifyAccountOrCustomerId("SG", "123456790");
-    verify(callActivityAction).saveCallActivity(ArgumentMatchers.any());
-    verify(callActivityAction).getCallActivityByRefNo("5623456789", "SGP");
-    verify(callActivityService).addToRecentItem(call, login);
-    // Uncomment if needed for further verification
-    // verify(callActivityAction).saveGenCallActivity(ArgumentMatchers.any());
-    verify(callActivityService).renderCallInfo(call, false, "SG", login);
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void testAuthorizationAndExceptionHandling() {
+        // Set up the user and menu access information
+        UserBean mockUserBean = mock(UserBean.class);
+        Login mockLogin = mock(Login.class);
+
+        when(mockUserBean.getCountryCode()).thenReturn("US");
+        when(mockUserBean.getUserRoleId()).thenReturn("ROLE_USER");
+        when(mockLogin.getUserBean()).thenReturn(mockUserBean);
+        
+        // Mocking the login service to return a user
+        when(loginService.getCurrentUser()).thenReturn(mockLogin);
+
+        // Mock menu access repository to simulate authorization
+        MenuItems authorizedMenuItem = new MenuItems("callActivity", "Call Activity");
+        when(menuAccessRepository.getMainMenuAndStartMenu(any(), any(), any(), any(), any()))
+            .thenReturn(List.of(authorizedMenuItem));
+        
+        // Mock genesys data (if needed for the test)
+        GenesysData genesysData = new GenesysData();
+        genesysData.setUcid("12345"); // Populate other fields as needed
+
+        // Call the service method and assert the expected outcomes
+        assertDoesNotThrow(() -> callActivityService.loadNewCallActivity(mockLogin, genesysData));
+
+        // Verify interactions
+        verify(menuAccessRepository).getMainMenuAndStartMenu(any(), any(), any(), any(), any());
+
+        // Additional assertions based on expected side effects or results
+        // For example, checking if call activity was saved or fields were populated
+        // These will depend on the actual logic and expected outcomes of your method
+    }
+
+    @Test
+    void testUnauthorizedUserAccess() {
+        // Set up user data with no access
+        UserBean mockUserBean = mock(UserBean.class);
+        Login mockLogin = mock(Login.class);
+        
+        when(mockUserBean.getCountryCode()).thenReturn("US");
+        when(mockUserBean.getUserRoleId()).thenReturn("ROLE_USER");
+        when(mockLogin.getUserBean()).thenReturn(mockUserBean);
+        
+        when(menuAccessRepository.getMainMenuAndStartMenu(any(), any(), any(), any(), any()))
+            .thenReturn(List.of()); // No authorized items
+
+        // Verify that exception is thrown when unauthorized
+        CallActivityAccessWithBizWarnException exception = assertThrows(
+            CallActivityAccessWithBizWarnException.class,
+            () -> callActivityService.loadNewCallActivity(mockLogin, null)
+        );
+
+        assertEquals("Access denied for call activity", exception.getMessage());
+    }
+
+    // Additional tests could be added here for other parts of the method logic, such as:
+    // - Validations on `genesysData`
+    // - Exception handling for specific cases (e.g., missing Genesys data)
+    // - Correct field mappings for CallActivity based on `genesysData`
 }
 
-Changes made:
+Explanation
 
-1. Fixed customerMap.put("gender", "F"); (it was incorrectly written as customertap.put).
+Test Setup: Using @Mock for dependencies and @InjectMocks to inject them into the service class.
 
+Authorization Test: Mocking menuAccessRepository to provide authorization, then verifying loadNewCallActivity processes correctly without exceptions.
 
-2. Corrected new HashMap<String, String>(); syntax and added semicolons.
-
-
-3. Fixed Mockito statements (for instance, .thenReturn(...) was corrected for proper syntax).
+Unauthorized User Test: Simulating a lack of access by returning an empty list from getMainMenuAndStartMenu, then checking that CallActivityAccessWithBizWarnException is thrown.
 
 
-4. Changed the verify() calls to match corrected variable and method names, including atLeast(1) syntax.
-
-
+You might need additional test cases to cover more logic in your method, especially to handle specific fields in genesysData and ensure accurate processing in CallActivity. Adjust based on the structure and fields available in your project classes.
 
