@@ -1,35 +1,112 @@
-@Test
-public void loadNewCallActivityGenesys_test() throws Exception {
-    // Arrange
-    Map<String, String> customerMap = new HashMap<>();
-    customerMap.put("fullName", "xxxx");
-    customerMap.put("gender", "F");
-    customerMap.put("genderDesc", "Female");
-    customerMap.put("staffCategoryCode", "01");
-    customerMap.put("staffCategoryDesc", "STAFF");
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-    Map<String, String> accountMap = new HashMap<>();
-    accountMap.put("custAcctProdType", "Savings Account");
-    accountMap.put("custAcctIdentifier", "ACCT");
-    accountMap.put("currencyCode", "SGD");
+import java.util.HashMap;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.ui.ModelMap;
+import com.example.CallActivityController;
+import com.example.model.CallActivity;
+import com.example.model.LoginBean;
+import com.example.service.CallActivityService;
 
-    Mockito.when(callActivityService.getCustomerInfo("SG", "A@198678")).thenReturn(customerMap);
-    Mockito.when(callActivityService.isSoftTokenEnableForCountry("SG")).thenReturn("true");
-    Mockito.when(callActivityService.identifyAccountOrCustomerId("SG", "123456790")).thenReturn(accountMap);
-    Mockito.when(callActivityAction.saveCallActivity(ArgumentMatchers.any())).thenReturn("SG23456789");
-    Mockito.when(callActivityAction.getCallActivityByRefNo("5623456789", "SGP")).thenReturn(call);
-    Mockito.doNothing().when(callActivityService).addToRecentItem(call, login);
-    Mockito.when(callActivityService.renderCallInfo(call, false, "SG", login)).thenReturn(sectionResponse);
+class CallActivityControllerTest {
 
-    // Act
-    controller.loadNewCallActivityGenesys(login, "TPIN", model, genesysData, "A0198678");
+    private MockMvc mockMvc;
 
-    // Assert
-    verify(callActivityService, times(2)).getCustomerInfo("SG", "A@198678");
-    verify(callActivityService).isSoftTokenEnableForCountry("SG");
-    verify(callActivityService, atLeastOnce()).identifyAccountOrCustomerId("SG", "123456790");
-    verify(callActivityAction).saveCallActivity(ArgumentMatchers.any());
-    verify(callActivityService).renderCallInfo(call, false, "SG", login);
+    @InjectMocks
+    private CallActivityController callActivityController;
 
-    // Add assertions for expected outcomes if needed, e.g., checking model attributes
+    @Mock
+    private CallActivityAction callActivityAction;
+
+    @Mock
+    private CallActivityService callActivityService;
+
+    @Mock
+    private LoginBean loginBean;
+
+    private ModelMap model;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        mockMvc = MockMvcBuilders.standaloneSetup(callActivityController).build();
+        model = new ModelMap();
+    }
+
+    @Test
+    void testButtonClickInfo_ValidType() throws Exception {
+        // Set up test data
+        String type = "1";
+        String callRefNo = "IN123456";
+        String refNo = callRefNo.substring(2);
+        String countryCode = "IN";
+
+        CallActivity callActivity = new CallActivity();
+        callActivity.setCustId("12345");
+        callActivity.setAccountNoIVR("987654321");
+
+        // Mock the LoginBean to return country code
+        when(loginBean.getUserBean().getCountryShortDesc()).thenReturn(countryCode);
+
+        // Mock the callActivityAction to return CallActivity
+        when(callActivityAction.getCallActivityByRefNo(refNo, countryCode)).thenReturn(callActivity);
+
+        // Prepare response data
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("RelationshipNo", callActivity.getCustId());
+        responseMap.put("AccountNo", callActivity.getAccountNoIVR());
+        responseMap.put("callRefNo", callRefNo);
+        responseMap.put("type", type);
+
+        when(callActivityService.makeResponseWrapper(responseMap, true)).thenReturn(responseMap);
+
+        // Perform test
+        mockMvc.perform(post("/genesys-button-click.do")
+                .param("type", type)
+                .param("callActivityNo", callRefNo)
+                .sessionAttr("login", loginBean))
+                .andExpect(status().isOk());
+
+        // Verify interactions
+        verify(callActivityAction).getCallActivityByRefNo(refNo, countryCode);
+        verify(callActivityService).makeResponseWrapper(responseMap, true);
+    }
+
+    @Test
+    void testButtonClickInfo_InvalidType() {
+        String invalidType = "invalidType";
+
+        Exception exception = assertThrows(CallActivityAccessException.class, () -> {
+            callActivityController.buttonClickInfo(loginBean, invalidType, "IN123456", model);
+        });
+
+        assertEquals("Invalid button type", exception.getMessage());
+    }
+
+    @Test
+    void testButtonClickInfo_CallActivityNotFound() {
+        String type = "1";
+        String callRefNo = "IN123456";
+        String refNo = callRefNo.substring(2);
+        String countryCode = "IN";
+
+        when(loginBean.getUserBean().getCountryShortDesc()).thenReturn(countryCode);
+        when(callActivityAction.getCallActivityByRefNo(refNo, countryCode)).thenReturn(null);
+
+        Exception exception = assertThrows(CallActivityAccessException.class, () -> {
+            callActivityController.buttonClickInfo(loginBean, type, callRefNo, model);
+        });
+
+        assertTrue(exception.getMessage().contains("Unable to retrieve call activity"));
+    }
 }
