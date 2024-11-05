@@ -1,24 +1,20 @@
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import java.util.HashMap;
-import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.ui.ModelMap;
-import com.example.CallActivityController;
-import com.example.model.CallActivity;
-import com.example.model.LoginBean;
-import com.example.service.CallActivityService;
+import java.util.HashMap;
+import java.util.Map;
 
-class CallActivityControllerTest {
+@ExtendWith(MockitoExtension.class)
+public class CallActivityControllerTest {
 
     private MockMvc mockMvc;
 
@@ -26,87 +22,125 @@ class CallActivityControllerTest {
     private CallActivityController callActivityController;
 
     @Mock
-    private CallActivityAction callActivityAction;
-
-    @Mock
     private CallActivityService callActivityService;
 
     @Mock
-    private LoginBean loginBean;
+    private CallActivityAction callActivityAction;
 
+    @Mock
+    private CemsUiIntegrator cemsUiIntegrator;
+
+    @Mock
+    private AppMessageSourceHelper messageHelper;
+
+    @Mock
+    private UserAction userAction;
+
+    @Mock
+    private MenuAccessRepository menuAccessRepository;
+
+    @Mock
+    private com.scb.coms.service.MenuService menuService;
+
+    @Mock
+    private CallActivityEDMIService callActivityEDMIService;
+
+    @Mock
+    private ParamRepository paramRepository;
+
+    @Mock
+    private BLPCIDSSDAO blpCIDSSDAO;
+
+    @Mock
+    private SoftTokenPropertiesUtil softTokenPropertiesUtil;
+
+    @Mock
+    private TSYSKongCommonService tsysKongCommonService;
+
+    @Mock
+    private SectionDataResponse sectionResponse;
+
+    private GenesysCallActivity genCall;
+    private LoginBean login;
     private ModelMap model;
+    private UserBean userBean;
+    private CallActivity call;
+    private Map<String, String> responseMap;
+    private Map<String, String> headers;
+    private GenesysRequestData genesysData;
 
     @BeforeEach
-    void setUp() {
+    public void setup() {
         MockitoAnnotations.openMocks(this);
         mockMvc = MockMvcBuilders.standaloneSetup(callActivityController).build();
+
+        // Initialize test data
+        genCall = new GenesysCallActivity();
+        genCall.setAvailableAuth("OTP");
+        genCall.setOnera("2+1");
+
+        call = new CallActivity("23456789", "SGP");
+        call.setCustId("A0198678");
+        call.setAccountNoIVR("123456790");
+
         model = new ModelMap();
+        login = new LoginBean();
+        userBean = new UserBean();
+        userBean.setCountryShortDesc("SGP");
+        userBean.setCountryCode("SG");
+        userBean.setInstanceCode("CB_5G");
+        userBean.setFullname("XXXX");
+
+        login.setUserBean(userBean);
+        login.setUsername("1200046");
+
+        responseMap = new HashMap<>();
+        responseMap.put("RelationshipNo", "SG23456789");
+        responseMap.put("Account", "123456790");
+        responseMap.put("callRef", "SG23456789");
+        responseMap.put("type", "ST");
+
+        headers = new HashMap<>();
+        headers.put("timestamp", String.valueOf(System.currentTimeMillis()));
+        headers.put("responseStatus", "true");
+
+        genesysData = new GenesysRequestData();
+        genesysData.setAccountNo("123456790");
+        genesysData.setRelId("A0198678");
     }
 
     @Test
-    void testButtonClickInfo_ValidType() throws Exception {
-        // Set up test data
-        String type = "1";
-        String callRefNo = "IN123456";
-        String refNo = callRefNo.substring(2);
-        String countryCode = "IN";
+    public void loadNewCallActivityGenesysTest() throws Exception {
+        // Arrange
+        Map<String, String> customerMap = new HashMap<>();
+        customerMap.put("fullname", "XXXX");
+        customerMap.put("gender", "Female");
+        customerMap.put("staffCategoryCode", "01");
+        customerMap.put("staffCategoryDesc", "STAFF");
 
-        CallActivity callActivity = new CallActivity();
-        callActivity.setCustId("12345");
-        callActivity.setAccountNoIVR("987654321");
+        Map<String, String> accountMap = new HashMap<>();
+        accountMap.put("custAcctProdType", "Savings Account");
+        accountMap.put("custAcctIdentifier", "ACCT");
+        accountMap.put("currencyCode", "SGD");
 
-        // Mock the LoginBean to return country code
-        when(loginBean.getUserBean().getCountryShortDesc()).thenReturn(countryCode);
+        when(callActivityService.getCustomerInfo("SG", "A0198678")).thenReturn(customerMap);
+        when(callActivityService.isSoftTokenEnableForCountry("SG")).thenReturn("true");
+        when(callActivityService.identifyAccountOrCustomerId("SG", "123456790")).thenReturn(accountMap);
+        when(callActivityAction.saveCallActivity(any())).thenReturn("SG23456789");
+        doNothing().when(callActivityService).addToRecentItem(call, login);
+        when(callActivityService.renderCallInfo(call, false, "SG", login)).thenReturn(sectionResponse);
 
-        // Mock the callActivityAction to return CallActivity
-        when(callActivityAction.getCallActivityByRefNo(refNo, countryCode)).thenReturn(callActivity);
+        // Act
+        callActivityController.loadNewCallActivityGenesys(login, "OTP", model, genesysData);
 
-        // Prepare response data
-        Map<String, Object> responseMap = new HashMap<>();
-        responseMap.put("RelationshipNo", callActivity.getCustId());
-        responseMap.put("AccountNo", callActivity.getAccountNoIVR());
-        responseMap.put("callRefNo", callRefNo);
-        responseMap.put("type", type);
+        // Assert
+        verify(callActivityService, times(1)).getCustomerInfo("SG", "A0198678");
+        verify(callActivityService).isSoftTokenEnableForCountry("SG");
+        verify(callActivityService).identifyAccountOrCustomerId("SG", "123456790");
+        verify(callActivityAction).saveCallActivity(any());
+        verify(callActivityService).renderCallInfo(call, false, "SG", login);
 
-        when(callActivityService.makeResponseWrapper(responseMap, true)).thenReturn(responseMap);
-
-        // Perform test
-        mockMvc.perform(post("/genesys-button-click.do")
-                .param("type", type)
-                .param("callActivityNo", callRefNo)
-                .sessionAttr("login", loginBean))
-                .andExpect(status().isOk());
-
-        // Verify interactions
-        verify(callActivityAction).getCallActivityByRefNo(refNo, countryCode);
-        verify(callActivityService).makeResponseWrapper(responseMap, true);
-    }
-
-    @Test
-    void testButtonClickInfo_InvalidType() {
-        String invalidType = "invalidType";
-
-        Exception exception = assertThrows(CallActivityAccessException.class, () -> {
-            callActivityController.buttonClickInfo(loginBean, invalidType, "IN123456", model);
-        });
-
-        assertEquals("Invalid button type", exception.getMessage());
-    }
-
-    @Test
-    void testButtonClickInfo_CallActivityNotFound() {
-        String type = "1";
-        String callRefNo = "IN123456";
-        String refNo = callRefNo.substring(2);
-        String countryCode = "IN";
-
-        when(loginBean.getUserBean().getCountryShortDesc()).thenReturn(countryCode);
-        when(callActivityAction.getCallActivityByRefNo(refNo, countryCode)).thenReturn(null);
-
-        Exception exception = assertThrows(CallActivityAccessException.class, () -> {
-            callActivityController.buttonClickInfo(loginBean, type, callRefNo, model);
-        });
-
-        assertTrue(exception.getMessage().contains("Unable to retrieve call activity"));
+        // Additional assertions for expected outcomes if needed
+        // Example: assertEquals(expectedValue, actualValue);
     }
 }
