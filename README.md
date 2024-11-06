@@ -1,110 +1,81 @@
 import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.ui.ModelMap;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.bind.annotation.RequestMethod;
 
 import java.util.HashMap;
 import java.util.Map;
 
-class GenesysControllerTest {
-
-    @Mock
-    private CallActivityAction callActivityAction;
+@RunWith(MockitoJUnitRunner.class)
+public class CallActivityControllerTest {
 
     @Mock
     private CallActivityService callActivityService;
 
+    @Mock
+    private CallActivityAction callActivityAction;
+
     @InjectMocks
-    private GenesysController genesysController;
+    private CallActivityController callActivityController;
 
     private MockMvc mockMvc;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(genesysController).build();
+    @Before
+    public void setup() {
+        mockMvc = MockMvcBuilders.standaloneSetup(callActivityController).build();
     }
 
     @Test
-    void testGenesysTransfer() throws Exception {
-        // Prepare test data
-        String callRefNo = "REF12345";
-        String customerId = "cust123";
-        String refNo = callRefNo.substring(2); // Expected processed refNo
-        String countryCode3 = "US";
+    public void testGenesysTransfer() throws Exception {
+        // Mock login bean
+        LoginBean loginBean = new LoginBean();
+        loginBean.setUserBean(new UserBean());
+        loginBean.getUserBean().setCountryShortDesc("US");
 
-        // Create login bean with necessary mock setup
-        LoginBean login = new LoginBean();
-        UserBean userBean = new UserBean();
-        userBean.setCountryShortDesc(countryCode3);
-        login.setUserBean(userBean);
+        // Mock call activity
+        CallActivity callActivity = new CallActivity();
+        callActivity.setCustomerSegment("Premium");
+        callActivity.setCallerId("123456");
+        callActivity.setCustIdIVR("ABC123");
+        callActivity.setOneFa("Verified");
+        callActivity.setTwofa("Verified");
 
-        CallActivity mockCallActivity = mock(CallActivity.class);
-        when(callActivityAction.getCallActivityByRefNo(refNo, countryCode3)).thenReturn(mockCallActivity);
-        
-        // Set up mock call activity values
-        when(mockCallActivity.getLang()).thenReturn("EN");
-        when(mockCallActivity.getCustomerSegment()).thenReturn("Premium");
-        when(mockCallActivity.getCallerId()).thenReturn("1234567890");
-        when(mockCallActivity.getOnis()).thenReturn("ONIS123");
-        when(mockCallActivity.getIdntfTyp()).thenReturn("ID123");
-        when(mockCallActivity.getIdBlockcode()).thenReturn("Block123");
-        when(mockCallActivity.getAuthBlockCode()).thenReturn("AuthBlock");
-        when(mockCallActivity.getSelfSrvcCode()).thenReturn("SelfService");
-        when(mockCallActivity.getAvailableAuth()).thenReturn("AuthAvailable");
-        when(mockCallActivity.getCustIdIVR()).thenReturn("IVR123");
-        when(mockCallActivity.getLastMobno()).thenReturn("9876543210");
-        when(mockCallActivity.getRmn()).thenReturn("RMN123");
-        when(mockCallActivity.isOneFaverifed()).thenReturn(true);
-        when(mockCallActivity.getOneFa()).thenReturn("1FA123");
-        when(mockCallActivity.isTwofaVerified()).thenReturn(true);
-        when(mockCallActivity.getTwofa()).thenReturn("2FA123");
-        
-        Map<String, String> transferPoints = new HashMap<>();
-        transferPoints.put("point1", "TransferPoint1");
-        when(callActivityService.getTransferPointsMap()).thenReturn(transferPoints);
+        // Mock action response
+        when(callActivityAction.getCallActivityByRefNo("12345", "US")).thenReturn(callActivity);
 
-        // Prepare form fields and expected response
+        // Prepare expected form fields
         Map<String, Object> formFields = new HashMap<>();
-        formFields.put("CTI_LANGUAGE", "EN");
-        formFields.put("CTI_SEGMENT", "Premium");
-        formFields.put("CTI_CALLERID", "1234567890");
-        formFields.put("CTI_DNIS", "ONIS123");
-        formFields.put("CTI_IDENTIFICATIONTYPE", "ID123");
-        formFields.put("CTI_IDENT_BLOCKCODES", "Block123");
-        formFields.put("CTI_AUTH_BLOCKCODES", "AuthBlock");
-        formFields.put("CTI_SELF_SERVICE_BLOCKCODES", "SelfService");
-        formFields.put("CTI_AVAILABLEAUTHENTICATION", "AuthAvailable");
-        formFields.put("CTI_RELATIONSHIPID", "IVR123");
-        formFields.put("CTI_MOBILE_NUMBER", "9876543210");
-        formFields.put("CTI_RMN", "RMN123");
-        formFields.put("transferPoints", transferPoints);
-        
-        String onefa = mockCallActivity.isOneFaverifed() ? mockCallActivity.getOneFa().concat("[S") : null;
-        String twofa = mockCallActivity.isTwofaVerified() ? mockCallActivity.getTwofa().concat("/5") : null;
-        
-        formFields.put("CTI_VERI", genesysController.setFailedHistory(onefa, mockCallActivity.getFailedAuthone()));
-        formFields.put("CTI_VER2", genesysController.setFailedHistory(twofa, mockCallActivity.getFailedAuthTwo()));
+        formFields.put("CTI_LANGUAGE", callActivity.getIang());
+        formFields.put("CTI_SEGMENT", callActivity.getCustomerSegment());
+        formFields.put("CTI_CALLERID", callActivity.getCallerId());
+        formFields.put("CTI_RELATIONSHIPID", callActivity.getCustIdIVR());
 
-        // Define expected response wrapper
-        Object expectedResponse = "Expected Response";
-        when(callActivityService.makeResponseWrapper(formFields, true)).thenReturn(expectedResponse);
+        // Mock service response
+        when(callActivityService.makeResponseWrapper(anyMap(), eq(true))).thenReturn(formFields);
 
-        // Execute the controller method
-        ModelMap model = new ModelMap();
-        Object result = genesysController.genesysTransfer(login, callRefNo, customerId, model);
+        // Perform request and verify response
+        mockMvc.perform(post("/call-activity/genesys-transfer.do")
+                .sessionAttr("login", loginBean)
+                .param("callRefNo", "12345")
+                .param("customerId", "CUST123")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.CTI_SEGMENT").value("Premium"))
+                .andExpect(jsonPath("$.CTI_CALLERID").value("123456"))
+                .andExpect(jsonPath("$.CTI_RELATIONSHIPID").value("ABC123"));
 
-        // Verify results
-        assertEquals(expectedResponse, result);
-        verify(callActivityAction).getCallActivityByRefNo(refNo, countryCode3);
-        verify(callActivityService).makeResponseWrapper(formFields, true);
+        // Verify interactions
+        verify(callActivityAction).getCallActivityByRefNo("12345", "US");
+        verify(callActivityService).makeResponseWrapper(anyMap(), eq(true));
     }
 }
