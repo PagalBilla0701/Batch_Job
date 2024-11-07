@@ -1,81 +1,127 @@
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+
+import java.util.*;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import java.util.HashMap;
-import java.util.Map;
+import org.slf4j.Logger;
 
 @RunWith(MockitoJUnitRunner.class)
-public class CallActivityControllerTest {
+public class CallActivityServiceImplTest {
+
+    @InjectMocks
+    private CallActivityServiceImpl callActivityService;
 
     @Mock
-    private CallActivityService callActivityService;
+    private Logger logger;
+
+    @Mock
+    private CemsUiIntegrator cemsUiIntegrator;
+
+    @Mock
+    private CemsSectionDataReqAction cemsSecDataReqAction;
 
     @Mock
     private CallActivityAction callActivityAction;
 
-    @InjectMocks
-    private CallActivityController callActivityController;
+    @Mock
+    private RecentItemAction recentItemAction;
 
-    private MockMvc mockMvc;
+    @Mock
+    private GridMetaDataAction gridMetaDataAction;
+
+    private CallActivity callActivity;
+    private LoginBean loginBean;
 
     @Before
-    public void setup() {
-        mockMvc = MockMvcBuilders.standaloneSetup(callActivityController).build();
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+
+        callActivity = new CallActivity();
+        loginBean = new LoginBean();
+
+        // Initialize callActivity fields for testing purposes
+        callActivity.setCustId("12345");
+        callActivity.setOneFa("1FA_Example");
+        callActivity.setTwoFa("2FA_Example");
+        callActivity.setAvailableAuth("AUTH_A|AUTH_B");
+        callActivity.setFailedAuthOne("AUTH_C");
+        callActivity.setFailedAuthTwo("AUTH_D");
     }
 
     @Test
-    public void testGenesysTransfer() throws Exception {
-        // Mock login bean
-        LoginBean loginBean = new LoginBean();
-        loginBean.setUserBean(new UserBean());
-        loginBean.getUserBean().setCountryShortDesc("US");
+    public void testGetButtons_OneFaVerified() {
+        callActivity.setOneFaVerifed(true);
 
-        // Mock call activity
-        CallActivity callActivity = new CallActivity();
-        callActivity.setCustomerSegment("Premium");
-        callActivity.setCallerId("123456");
-        callActivity.setCustIdIVR("ABC123");
-        callActivity.setOneFa("Verified");
-        callActivity.setTwofa("Verified");
+        Map<String, String> buttons = callActivityService.getButtons(callActivity);
 
-        // Mock action response
-        when(callActivityAction.getCallActivityByRefNo("12345", "US")).thenReturn(callActivity);
-
-        // Prepare expected form fields
-        Map<String, Object> formFields = new HashMap<>();
-        formFields.put("CTI_LANGUAGE", callActivity.getIang());
-        formFields.put("CTI_SEGMENT", callActivity.getCustomerSegment());
-        formFields.put("CTI_CALLERID", callActivity.getCallerId());
-        formFields.put("CTI_RELATIONSHIPID", callActivity.getCustIdIVR());
-
-        // Mock service response
-        when(callActivityService.makeResponseWrapper(anyMap(), eq(true))).thenReturn(formFields);
-
-        // Perform request and verify response
-        mockMvc.perform(post("/call-activity/genesys-transfer.do")
-                .sessionAttr("login", loginBean)
-                .param("callRefNo", "12345")
-                .param("customerId", "CUST123")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.CTI_SEGMENT").value("Premium"))
-                .andExpect(jsonPath("$.CTI_CALLERID").value("123456"))
-                .andExpect(jsonPath("$.CTI_RELATIONSHIPID").value("ABC123"));
-
-        // Verify interactions
-        verify(callActivityAction).getCallActivityByRefNo("12345", "US");
-        verify(callActivityService).makeResponseWrapper(anyMap(), eq(true));
+        assertNotNull(buttons);
+        assertTrue(buttons.containsKey("twoPlusOne"));
+        assertEquals("Success", buttons.get("twoPlusOne"));
     }
+
+    @Test
+    public void testGetButtons_NotOneFaVerified() {
+        callActivity.setOneFaVerifed(false);
+
+        Map<String, String> buttons = callActivityService.getButtons(callActivity);
+
+        assertNotNull(buttons);
+        assertTrue(buttons.containsKey("twoPlusOne"));
+        assertEquals("Enable", buttons.get("twoPlusOne"));
+    }
+
+    @Test
+    public void testAddAvailableAuthButtons() {
+        CallButtons buttons = new CallButtons();
+
+        callActivityService.addAvailableAuthButtons(callActivity, buttons);
+
+        assertEquals("Enable", buttons.getButtons().get("AUTH_A"));
+        assertEquals("Enable", buttons.getButtons().get("AUTH_B"));
+    }
+
+    @Test
+    public void testSetFailureAuthButtons() {
+        CallButtons buttons = new CallButtons();
+
+        callActivityService.setFailureAuthButtons(callActivity, buttons);
+
+        assertEquals("Failure", buttons.getButtons().get("AUTH_C"));
+        assertEquals("Failure", buttons.getButtons().get("AUTH_D"));
+    }
+
+    @Test
+    public void testGetAttachedData() {
+        Map<String, Object> attachedData = callActivityService.getAttachedData(callActivity, "Inbound");
+
+        assertNotNull(attachedData);
+        assertEquals("12345", attachedData.get("relld"));
+        assertEquals("1FA_Example", attachedData.get("1FA"));
+        assertEquals("2FA_Example", attachedData.get("2FA"));
+        assertEquals("Inbound", attachedData.get("Call Type"));
+    }
+
+    @Test
+    public void testRenderGenesysNewCallInfo() {
+        callActivity.setVerified(true);
+        Map<String, Object> sectionDataReqMap = new HashMap<>();
+        sectionDataReqMap.put("sectionId", "16015");
+
+        SectionDataResponse mockResponse = new SectionDataResponse();
+        when(cemsUiIntegrator.integrate(anyMap(), anyMap(), eq(loginBean))).thenReturn(mockResponse);
+
+        SectionDataResponse response = callActivityService.renderGenesysNewCallInfo(callActivity, loginBean);
+
+        assertNotNull(response);
+        verify(cemsUiIntegrator, times(1)).integrate(anyMap(), anyMap(), eq(loginBean));
+    }
+
+    // Additional tests can be added to cover other methods if needed.
 }
