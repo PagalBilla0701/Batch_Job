@@ -1,34 +1,33 @@
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.junit.MockitoJUnitRunner;
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
-import java.util.*;
+import org.mockito.runners.MockitoJUnitRunner;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @RunWith(MockitoJUnitRunner.class)
-public class CallActivityServiceImplTest {
+public class CallActivityActionImplTest {
+
+    @Mock
+    private CallActivityRepository callActivityRepository;
+
+    @Mock
+    private VerificationScriptProxy proxy;
+
+    @Mock
+    private VerificationScriptProxyIE IEProxy;
 
     @InjectMocks
-    private CallActivityServiceImpl callActivityService;
-
-    @Mock
-    private CemsUiIntegrator cemsUiIntegrator;
-
-    @Mock
-    private CemsSectionDataReqAction cemsSecDataReqAction;
-
-    @Mock
-    private CallActivityAction callActivityAction;
-
-    @Mock
-    private RecentItemAction recentItemAction;
-
-    @Mock
-    private GridMetaDataAction gridMetaDataAction;
+    private CallActivityActionImpl callActivityAction;
 
     @Before
     public void setUp() {
@@ -36,106 +35,67 @@ public class CallActivityServiceImplTest {
     }
 
     @Test
-    public void testGetButtons_WithOneFaVerified() {
-        CallActivity callActivity = new CallActivity();
-        callActivity.setOneFaVerified(true);
-        callActivity.setOneFa("2+1");
+    public void testSaveGenCallActivity() throws Exception {
+        GenesysCallActivity mockGenCall = new GenesysCallActivity();
+        when(callActivityRepository.saveGenesysCallActivity(mockGenCall)).thenReturn(mockGenCall);
 
-        Map<String, String> buttons = callActivityService.getButtons(callActivity);
+        GenesysCallActivity result = callActivityAction.saveGenCallActivity(mockGenCall);
 
-        assertEquals("Success", buttons.get("twoPlusOne"));
+        assertNotNull(result);
+        verify(callActivityRepository, times(1)).saveGenesysCallActivity(mockGenCall);
     }
 
     @Test
-    public void testGetButtons_WithTwoFaVerified() {
-        CallActivity callActivity = new CallActivity();
-        callActivity.setOneFaVerified(false);
-        callActivity.setTwoFaVerified(true);
-        callActivity.setTwoFa("authCode");
-
-        Map<String, String> buttons = callActivityService.getButtons(callActivity);
-
-        assertEquals("Success", buttons.get("authCode"));
-    }
-
-    @Test
-    public void testAddTransients() {
+    public void testRemoveFromListOfAuthentications() {
         CallActivity call = new CallActivity();
-        LoginBean login = mock(LoginBean.class);
-        UserBean userBean = new UserBean();
-        userBean.setCountryCode("IN");
-        userBean.setUserLanguage("EN");
-        userBean.setUserId(123L);
-        userBean.setPeoplewiseld("ABC123");
+        call.setAvailableAuth("auth1|auth2|auth3");
+        call.setTwoFaVerified(true);
 
-        when(login.getUserBean()).thenReturn(userBean);
-        when(cemsSecDataReqAction.getSectionDataResponse(any(), eq(login)))
-            .thenReturn(mock(SectionDataResponse.class));
+        String authMethod = "auth2";
 
-        callActivityService.addTransients(call, login);
+        callActivityAction.removeFromListOfAuthentications(call, authMethod);
 
-        assertEquals("IN", call.getCountryCode());
-        assertNotNull(call.getCustId());
+        List<String> expectedAuthList = Arrays.asList("auth1", "auth3");
+        assertEquals(String.join("|", expectedAuthList), call.getAvailableAuth());
     }
 
     @Test
-    public void testValueToStringOrEmpty_WithValue() {
-        Map<String, Object> map = new HashMap<>();
-        map.put("key1", "value1");
-
-        String result = callActivityService.valueToStringOrEmpty(map, "key1");
-
-        assertEquals("value1", result);
-    }
-
-    @Test
-    public void testValueToStringOrEmpty_WithNoValue() {
-        Map<String, Object> map = new HashMap<>();
-
-        String result = callActivityService.valueToStringOrEmpty(map, "key1");
-
-        assertEquals("", result);
-    }
-
-    @Test
-    public void testGetAttachedData() {
+    public void testRemoveFromListOfAuthentications_NotVerified() {
         CallActivity call = new CallActivity();
-        call.setCustId("12345");
-        call.setOneFa("1FAValue");
-        call.setTwoFa("2FAValue");
+        call.setAvailableAuth("auth1|auth2");
+        call.setTwoFaVerified(false);
 
-        Map<String, Object> attachedData = callActivityService.getAttachedData(call, "CallType");
+        String authMethod = "auth2";
 
-        assertEquals("12345", attachedData.get("relld"));
-        assertEquals("1FAValue", attachedData.get("1FA"));
-        assertEquals("2FAValue", attachedData.get("2FA"));
+        callActivityAction.removeFromListOfAuthentications(call, authMethod);
+
+        assertEquals("auth1|auth2", call.getAvailableAuth());
     }
 
     @Test
-    public void testRenderGenesysNewCallInfo_Verified() {
-        CallActivity call = new CallActivity();
-        call.setVerified(true);
-        LoginBean login = mock(LoginBean.class);
+    public void testGetGenesysCallActivityByRelId() throws Exception {
+        String relId = "relId1";
 
-        SectionDataResponse mockResponse = mock(SectionDataResponse.class);
-        when(cemsUiIntegrator.integrate(anyMap(), anyMap(), eq(login))).thenReturn(mockResponse);
+        GenesysCallActivity mockGenCall = new GenesysCallActivity();
+        when(callActivityRepository.getGenesysCallActivityByRelId(relId)).thenReturn(mockGenCall);
 
-        SectionDataResponse response = callActivityService.renderGenesysNewCallInfo(call, login);
+        GenesysCallActivity result = callActivityAction.getGenesysCallActivityByRelId(relId);
 
-        assertNotNull(response);
+        assertNotNull(result);
+        verify(callActivityRepository, times(1)).getGenesysCallActivityByRelId(relId);
     }
 
     @Test
-    public void testRenderGenesysNewCallInfo_NotVerified() {
-        CallActivity call = new CallActivity();
-        call.setVerified(false);
-        LoginBean login = mock(LoginBean.class);
+    public void testSensitiveCustomerFlag() {
+        String relId = "relId1";
+        String countryCode = "US";
+        String expectedFlag = "Y";
 
-        SectionDataResponse mockResponse = mock(SectionDataResponse.class);
-        when(cemsUiIntegrator.integrate(anyMap(), anyMap(), eq(login))).thenReturn(mockResponse);
+        when(callActivityRepository.getSenstiveCustomer(relId, countryCode)).thenReturn(expectedFlag);
 
-        SectionDataResponse response = callActivityService.renderGenesysNewCallInfo(call, login);
+        String result = callActivityAction.senstiveCustomerFlag(relId, countryCode);
 
-        assertNotNull(response);
+        assertEquals(expectedFlag, result);
+        verify(callActivityRepository, times(1)).getSenstiveCustomer(relId, countryCode);
     }
 }
