@@ -4,15 +4,19 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Map;
+import java.net.URI;
 import java.util.HashMap;
+import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class IVRCtomResponseEntityServiceTest {
@@ -20,50 +24,55 @@ public class IVRCtomResponseEntityServiceTest {
     @Mock
     private ParamRepository paramRepository;
 
+    @Mock
+    private CtomOAuthTokenGenerator ctomOAuthTokenGenerator;
+
+    @Mock
+    private RestTemplate restTemplate;
+
     @InjectMocks
-    private IVRCtomResponseEntityService instance; // Replace with the actual service class name
+    private IVRCtomResponseEntityService ivrCtomResponseEntityService;
+
+    private Map<String, Object> ctomRequestBody;
+    private String idParam = "id123";
+    private String xParamKey1 = "testKey1";
+    private String xParamKey2 = "testKey2";
+    private String countryCodeForParam = "US";
+
+    @Before
+    public void setUp() {
+        ctomRequestBody = new HashMap<>();
+        ctomRequestBody.put("countryCode", countryCodeForParam);
+    }
 
     @Test
-    public void testGetCTOMEndPointURL() {
-        try {
-            // Arrange
-            String xParamKey1 = "testKey1";
-            String xParamKey2 = "testKey2";
-            String countryCode = "US";
-            String idParam = "id123";
-            
-            Param param = new Param(idParam);
-            param.setCountryCode(countryCode);
-            
-            Param results = Mockito.mock(Param.class);
-            String[] data = {"", "roleIdValue", "secretIdValue", "", "", "oAuthUrlValue", "serviceUrlValue"};
-            
-            // Mock behavior for results and paramRepository
-            when(results.getData()).thenReturn(data);
-            when(paramRepository.getParam(Mockito.any(Param.class))).thenReturn(results);
+    public void testGetReponseEntityforCTOM() throws Exception {
+        // Arrange
+        Map<String, String> mockParamData = new HashMap<>();
+        mockParamData.put("service_url", "http://example.com/api");
 
-            // Access private method using reflection
-            Method method = IVRCtomResponseEntityService.class.getDeclaredMethod("getCTOMEndPointURL", String.class, String.class, String.class, String.class);
-            method.setAccessible(true);
+        // Mock the behavior of getCTOMEndPointURL to return mock data
+        when(ivrCtomResponseEntityService.getCTOMEndPointURL(xParamKey1, xParamKey2, countryCodeForParam, idParam))
+                .thenReturn(mockParamData);
 
-            // Act - Invoke the private method
-            Map<String, String> resultMap = (Map<String, String>) method.invoke(instance, xParamKey1, xParamKey2, countryCode, idParam);
+        // Mock the behavior of CtomOAuthTokenGenerator to return a dummy access token
+        when(ctomOAuthTokenGenerator.getAccessToken(mockParamData)).thenReturn("dummyAccessToken");
 
-            // Assert
-            assertEquals("roleIdValue", resultMap.get("roleId"));
-            assertEquals("secretIdValue", resultMap.get("secretId"));
-            assertEquals("oAuthUrlValue", resultMap.get("oAuth_url"));
-            assertEquals("serviceUrlValue", resultMap.get("service_url"));
-            
-        } catch (InvocationTargetException e) {
-            // Print the underlying exception for debugging
-            Throwable cause = e.getCause();
-            System.err.println("Exception in getCTOMEndPointURL: " + cause);
-            cause.printStackTrace();
-            throw new RuntimeException("Failed to invoke getCTOMEndPointURL", cause);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Error setting up test", e);
-        }
+        // Mock RestTemplate to simulate an HTTP POST request and return a successful response
+        ResponseEntity<String> mockResponseEntity = mock(ResponseEntity.class);
+        when(mockResponseEntity.getBody()).thenReturn("Mocked response body");
+        when(restTemplate.postForEntity(any(URI.class), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(mockResponseEntity);
+
+        // Act
+        ResponseEntity<String> response = ivrCtomResponseEntityService.getReponseEntityforCTOM(ctomRequestBody, idParam, xParamKey1, xParamKey2, countryCodeForParam);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("Mocked response body", response.getBody());
+
+        // Verify interactions
+        verify(restTemplate, times(1)).postForEntity(any(URI.class), any(HttpEntity.class), eq(String.class));
+        verify(ctomOAuthTokenGenerator, times(1)).getAccessToken(mockParamData);
     }
 }
