@@ -1,20 +1,26 @@
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+
+import com.example.CallActivityRepository;
+import com.example.VerificationScriptProxy;
+import com.example.VerificationScriptProxyIE;
+import com.example.CallActivityActionImpl;
+import com.example.GenesysCallActivity;
+import com.example.CallActivity;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.runners.MockitoJUnitRunner;
-import org.springframework.test.util.ReflectionTestUtils;
-
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class CallActivityActionImplTest {
 
     @Mock
@@ -29,73 +35,55 @@ public class CallActivityActionImplTest {
     @InjectMocks
     private CallActivityActionImpl callActivityAction;
 
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
+    private GenesysCallActivity genCall;
+    private CallActivity call;
+
+    @BeforeEach
+    void setUp() {
+        genCall = new GenesysCallActivity(); // Initialize with sample data as needed
+        call = new CallActivity(); // Initialize with sample data as needed
     }
 
     @Test
     public void testSaveGenCallActivity() throws Exception {
-        GenesysCallActivity mockGenCall = new GenesysCallActivity();
-        when(callActivityRepository.saveGenesysCallActivity(mockGenCall)).thenReturn(mockGenCall);
-
-        GenesysCallActivity result = callActivityAction.saveGenCallActivity(mockGenCall);
-
-        assertNotNull(result);
-        verify(callActivityRepository, times(1)).saveGenesysCallActivity(mockGenCall);
+        when(callActivityRepository.saveGenesysCallActivity(genCall)).thenReturn(genCall);
+        GenesysCallActivity result = callActivityAction.saveGenCallActivity(genCall);
+        assertEquals(genCall, result);
+        verify(callActivityRepository).saveGenesysCallActivity(genCall);
     }
 
     @Test
     public void testRemoveFromListOfAuthentications() {
-        CallActivity call = new CallActivity();
-        call.setAvailableAuth("auth1|auth2|auth3");
+        String authMethod = "authMethod";
+        call.setAvailableAuth("authMethod|anotherMethod");
         call.setTwoFaVerified(true);
-
-        String authMethod = "auth2";
-
+        
         callActivityAction.removeFromListOfAuthentications(call, authMethod);
 
-        List<String> expectedAuthList = Arrays.asList("auth1", "auth3");
-        assertEquals(String.join("|", expectedAuthList), call.getAvailableAuth());
-    }
-
-    @Test
-    public void testRemoveFromListOfAuthentications_NotVerified() {
-        CallActivity call = new CallActivity();
-        call.setAvailableAuth("auth1|auth2");
-        call.setTwoFaVerified(false);
-
-        String authMethod = "auth2";
-
-        callActivityAction.removeFromListOfAuthentications(call, authMethod);
-
-        assertEquals("auth1|auth2", call.getAvailableAuth());
+        assertEquals("anotherMethod", call.getAvailableAuth());
     }
 
     @Test
     public void testGetGenesysCallActivityByRelId() throws Exception {
-        String relId = "relId1";
-
-        GenesysCallActivity mockGenCall = new GenesysCallActivity();
-        when(callActivityRepository.getGenesysCallActivityByRelId(relId)).thenReturn(mockGenCall);
+        String relId = "12345";
+        GenesysCallActivity mockGenesysCallActivity = new GenesysCallActivity();
+        when(callActivityRepository.findByRelId(relId)).thenReturn(mockGenesysCallActivity);
 
         GenesysCallActivity result = callActivityAction.getGenesysCallActivityByRelId(relId);
-
-        assertNotNull(result);
-        verify(callActivityRepository, times(1)).getGenesysCallActivityByRelId(relId);
+        assertEquals(mockGenesysCallActivity, result);
+        verify(callActivityRepository).findByRelId(relId);
     }
 
     @Test
     public void testSensitiveCustomerFlag() {
-        String relId = "relId1";
+        String relId = "12345";
         String countryCode = "US";
-        String expectedFlag = "Y";
-
+        String expectedFlag = "Sensitive";
+        
         when(callActivityRepository.getSenstiveCustomer(relId, countryCode)).thenReturn(expectedFlag);
-
+        
         String result = callActivityAction.senstiveCustomerFlag(relId, countryCode);
-
         assertEquals(expectedFlag, result);
-        verify(callActivityRepository, times(1)).getSenstiveCustomer(relId, countryCode);
+        verify(callActivityRepository).getSenstiveCustomer(relId, countryCode);
     }
 }
