@@ -1,78 +1,55 @@
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.runners.MockitoJUnitRunner;
+
 import java.util.HashMap;
 import java.util.Map;
 
-public class StrSubstitutorTest {
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.when;
 
-    private YourClassName instance; // Replace YourClassName with the actual class name containing strSubstitutor
+@RunWith(MockitoJUnitRunner.class)
+public class YourServiceTest {
+
+    @Mock
+    private ParamRepository paramRepository;
+
+    @InjectMocks
+    private YourService instance; // Replace 'YourService' with the actual service class name
 
     @Before
     public void setUp() {
-        instance = new YourClassName();
+        // Initialize any required setup
     }
 
     @Test
-    public void testStrSubstitutor_NormalSubstitution() throws Exception {
-        String actualUrl = "https://example.com/api?param1=$(value1)&param2=$(value2)";
-        Map<String, Object> inputMap = new HashMap<>();
-        inputMap.put("value1", "test1");
-        inputMap.put("value2", "test2");
+    public void testGetCTOMEndPointURL() {
+        // Arrange
+        String xParamKey1 = "testKey1";
+        String xParamKey2 = "testKey2";
+        String countryCode = "US";
+        String idParam = "id123";
+        
+        Param param = new Param(idParam);
+        param.setCountryCode(countryCode);
+        
+        Param results = Mockito.mock(Param.class);
+        String[] data = {"", "roleIdValue", "secretIdValue", "", "", "oAuthUrlValue", "serviceUrlValue"};
+        
+        when(results.getData()).thenReturn(data);
+        when(paramRepository.getParam(param)).thenReturn(results);
 
-        String result = instance.strSubstitutor(actualUrl, inputMap);
-        assertEquals("https://example.com/api?param1=test1&param2=test2", result);
-    }
+        // Act
+        Map<String, String> resultMap = instance.getCTOMEndPointURL(xParamKey1, xParamKey2, countryCode, idParam);
 
-    @Test
-    public void testStrSubstitutor_NullUrl() throws Exception {
-        Map<String, Object> inputMap = new HashMap<>();
-        inputMap.put("value", "test");
-
-        String result = instance.strSubstitutor(null, inputMap);
-        assertNull(result);
-    }
-
-    @Test
-    public void testStrSubstitutor_UrlWithoutQueryParams() throws Exception {
-        String actualUrl = "https://example.com/api";
-        Map<String, Object> inputMap = new HashMap<>();
-        inputMap.put("value", "test");
-
-        String result = instance.strSubstitutor(actualUrl, inputMap);
-        assertEquals(actualUrl, result);
-    }
-
-    @Test
-    public void testStrSubstitutor_MissingInputMapEntry() throws Exception {
-        String actualUrl = "https://example.com/api?param1=$(value1)";
-        Map<String, Object> inputMap = new HashMap<>();
-
-        String result = instance.strSubstitutor(actualUrl, inputMap);
-        assertEquals("https://example.com/api?param1=", result); // Expecting empty string for missing entry
-    }
-
-    @Test
-    public void testStrSubstitutor_NullValuesInInputMap() throws Exception {
-        String actualUrl = "https://example.com/api?param1=$(value1)";
-        Map<String, Object> inputMap = new HashMap<>();
-        inputMap.put("value1", null);
-
-        String result = instance.strSubstitutor(actualUrl, inputMap);
-        assertEquals("https://example.com/api?param1=", result);
-    }
-
-    @Test
-    public void testStrSubstitutor_ExceptionHandling() {
-        String actualUrl = "https://example.com/api?param1=$(value1)";
-        Map<String, Object> inputMap = mock(Map.class);
-        when(inputMap.entrySet()).thenThrow(new RuntimeException("Test exception"));
-
-        try {
-            instance.strSubstitutor(actualUrl, inputMap);
-        } catch (Exception e) {
-            fail("Exception should be caught within the method");
-        }
+        // Assert
+        assertEquals("roleIdValue", resultMap.get("roleId"));
+        assertEquals("secretIdValue", resultMap.get("secretId"));
+        assertEquals("oAuthUrlValue", resultMap.get("oAuth_url"));
+        assertEquals("serviceUrlValue", resultMap.get("service_url"));
     }
 }
