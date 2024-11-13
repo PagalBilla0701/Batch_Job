@@ -1,137 +1,53 @@
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.runners.MockitoJUnitRunner;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
-import java.util.*;
+@Test
+public void testGetResponseEntityForCTOM() throws Exception {
+    // Arrange
+    Map<String, String> mockParamData = new HashMap<>();
+    mockParamData.put("service_url", "http://example.com/api");
 
-@RunWith(MockitoJUnitRunner.class)
-public class IVRCtomResponseEntityServiceTest {
+    IVRCtomResponseEntityService instance = new IVRCtomResponseEntityService();
 
-    @InjectMocks
-    private IVRCtomResponseEntityService service;
+    Method method = IVRCtomResponseEntityService.class.getDeclaredMethod(
+        "getCTOMEndPointURL", String.class, String.class, String.class, String.class);
+    method.setAccessible(true);
 
-    @Mock
-    private ParamRepository paramRepository;
+    String xParamKey1 = "xParamKey1";
+    String xParamKey2 = "xParamKey2";
+    String countryCodeForParam = "countryCode";
+    String idParam = "idParam";
+    
+    // Act - Invoke the private method
+    Map<String, String> resultMap = (Map<String, String>) method.invoke(
+        instance, xParamKey1, xParamKey2, countryCodeForParam, idParam);
 
-    @Mock
-    private CtomOAuthTokenGenerator ctomOAuthTokenGenerator;
+    // Mock the behavior of getCTOMEndPointURL to return mock data
+    when(resultMap).thenReturn(mockParamData);
 
-    @Mock
-    private List<HttpMessageConverter<?>> customMessageConverters;
+    // Mock the behavior of ctomOAuthTokenGenerator to return a dummy access token
+    CtomOAuthTokenGenerator ctomOAuthTokenGenerator = mock(CtomOAuthTokenGenerator.class);
+    when(ctomOAuthTokenGenerator.getAccessToken(mockParamData)).thenReturn("dummyAccessToken");
 
-    @Mock
-    private RestTemplate restTemplate;
+    // Mock RestTemplate to simulate an HTTP POST request and return a successful response
+    ResponseEntity<String> mockResponseEntity = mock(ResponseEntity.class);
+    when(mockResponseEntity.getBody()).thenReturn("Mocked response body");
 
-    @Before
-    public void setup() {
-        MockitoAnnotations.initMocks(this);
-    }
+    // Mock RestTemplate behavior
+    RestTemplate restTemplate = mock(RestTemplate.class);
+    when(restTemplate.postForEntity(anyString(), any(), eq(String.class))).thenReturn(mockResponseEntity);
 
-    @Test
-    public void testGetReponseEntityforCTOM_Success() throws Exception {
-        // Mock inputs
-        Map<String, Object> ctomRequestBody = new HashMap<>();
-        ctomRequestBody.put("countryCode", "US");
-        
-        String idParam = "testId";
-        String xParamKey1 = "key1";
-        String xParamKey2 = "key2";
-        String countryCodeForParam = "US";
+    // Act
+    String ctomRequestBody = "ctomRequestBody";
+    IVRCtomResponseEntityService spyInstance = spy(instance);
+    doReturn(restTemplate).when(spyInstance).getRestTemplate();
 
-        Map<String, String> paramData = new HashMap<>();
-        paramData.put("service_url", "http://mock-url.com");
-        paramData.put("roleId", "testRole");
-        paramData.put("secretId", "testSecret");
+    ResponseEntity<String> response = spyInstance.getResponseEntityForCTOM(
+        ctomRequestBody, idParam, xParamKey1, xParamKey2, countryCodeForParam);
 
-        when(service.getCTOMEndPointURL(xParamKey1, xParamKey2, countryCodeForParam, idParam)).thenReturn(paramData);
-        when(ctomOAuthTokenGenerator.getAccessToken(paramData)).thenReturn("mockToken");
+    // Assert
+    assertNotNull(resultMap);
+    assertNotNull(response);
+    assertEquals("Mocked response body", response.getBody());
 
-        // Mock headers
-        HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth("mockToken");
-
-        // Mock response entity
-        ResponseEntity<CtomComplaintResponseBody> mockResponse = ResponseEntity.ok(new CtomComplaintResponseBody());
-        when(restTemplate.postForEntity(any(), any(), eq(CtomComplaintResponseBody.class))).thenReturn(mockResponse);
-
-        // Execute the method
-        ResponseEntity<CtomComplaintResponseBody> responseEntity = service.getReponseEntityforCTOM(ctomRequestBody, idParam, xParamKey1, xParamKey2, countryCodeForParam);
-
-        // Verify
-        assertNotNull(responseEntity);
-        assertEquals(mockResponse, responseEntity);
-        verify(restTemplate, times(1)).postForEntity(any(), any(), eq(CtomComplaintResponseBody.class));
-    }
-
-    @Test
-    public void testGetCTOMEndPointURL_Success() {
-        String idParam = "testId";
-        String xParamKey1 = "key1";
-        String xParamKey2 = "key2";
-        String countryCode = "US";
-
-        Param mockParam = new Param(idParam);
-        mockParam.setCountryCode(countryCode);
-        mockParam.setKeys(new String[]{xParamKey1, xParamKey2});
-        
-        Param results = new Param();
-        results.setData(new String[]{"", "testRoleId", "testSecretId", "", "", "http://mock-oauth-url.com", "http://mock-service-url.com"});
-        
-        when(paramRepository.getParam(mockParam)).thenReturn(results);
-
-        // Execute
-        Map<String, String> dataMap = service.getCTOMEndPointURL(xParamKey1, xParamKey2, countryCode, idParam);
-
-        // Verify
-        assertNotNull(dataMap);
-        assertEquals("testRoleId", dataMap.get("roleId"));
-        assertEquals("testSecretId", dataMap.get("secretId"));
-        assertEquals("http://mock-oauth-url.com", dataMap.get("oAuth_url"));
-        assertEquals("http://mock-service-url.com", dataMap.get("service_url"));
-    }
-
-    @Test
-    public void testStrSubstitutor_UrlSubstitution() throws Exception {
-        String actualUrl = "http://mock-url.com?param1=$(param1)&param2=$(param2)";
-        
-        Map<String, Object> inputMap = new HashMap<>();
-        inputMap.put("param1", "value1");
-        inputMap.put("param2", "value2");
-
-        String expectedUrl = "http://mock-url.com?param1=value1&param2=value2";
-
-        // Execute
-        String result = service.strSubstitutor(actualUrl, inputMap);
-
-        // Verify
-        assertEquals(expectedUrl, result);
-    }
-
-    @Test
-    public void testStrSubstitutor_MissingParams() throws Exception {
-        String actualUrl = "http://mock-url.com?param1=$(param1)&param2=$(param2)";
-
-        Map<String, Object> inputMap = new HashMap<>();
-        inputMap.put("param1", "value1");
-
-        String expectedUrl = "http://mock-url.com?param1=value1&param2=";
-
-        // Execute
-        String result = service.strSubstitutor(actualUrl, inputMap);
-
-        // Verify
-        assertEquals(expectedUrl, result);
-    }
+    // Verify interactions
+    verify(ctomOAuthTokenGenerator, times(1)).getAccessToken(mockParamData);
+    verify(restTemplate, times(1)).postForEntity(anyString(), any(), eq(String.class));
 }
