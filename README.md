@@ -1,53 +1,108 @@
-@Test
-public void testGetResponseEntityForCTOM() throws Exception {
-    // Arrange
-    Map<String, String> mockParamData = new HashMap<>();
-    mockParamData.put("service_url", "http://example.com/api");
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
 
-    IVRCtomResponseEntityService instance = new IVRCtomResponseEntityService();
+import java.util.*;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 
-    Method method = IVRCtomResponseEntityService.class.getDeclaredMethod(
-        "getCTOMEndPointURL", String.class, String.class, String.class, String.class);
-    method.setAccessible(true);
+@RunWith(MockitoJUnitRunner.class)
+public class MYIVRJDBCDAOTest {
 
-    String xParamKey1 = "xParamKey1";
-    String xParamKey2 = "xParamKey2";
-    String countryCodeForParam = "countryCode";
-    String idParam = "idParam";
-    
-    // Act - Invoke the private method
-    Map<String, String> resultMap = (Map<String, String>) method.invoke(
-        instance, xParamKey1, xParamKey2, countryCodeForParam, idParam);
+    @Mock
+    private JdbcTemplate jdbcTemplate;
 
-    // Mock the behavior of getCTOMEndPointURL to return mock data
-    when(resultMap).thenReturn(mockParamData);
+    @Mock
+    private PicklistService picklistService;
 
-    // Mock the behavior of ctomOAuthTokenGenerator to return a dummy access token
-    CtomOAuthTokenGenerator ctomOAuthTokenGenerator = mock(CtomOAuthTokenGenerator.class);
-    when(ctomOAuthTokenGenerator.getAccessToken(mockParamData)).thenReturn("dummyAccessToken");
+    @InjectMocks
+    private MYIVRJDBCDAO myivrJdbcDao;
 
-    // Mock RestTemplate to simulate an HTTP POST request and return a successful response
-    ResponseEntity<String> mockResponseEntity = mock(ResponseEntity.class);
-    when(mockResponseEntity.getBody()).thenReturn("Mocked response body");
+    private ResourceBundle queryStore;
 
-    // Mock RestTemplate behavior
-    RestTemplate restTemplate = mock(RestTemplate.class);
-    when(restTemplate.postForEntity(anyString(), any(), eq(String.class))).thenReturn(mockResponseEntity);
+    @Before
+    public void setUp() {
+        queryStore = ResourceBundle.getBundle("com/scb/cems/crmxt/query/CVDAOQueries");
+        myivrJdbcDao.setQueryStore("com/scb/cems/crmxt/query/CVDAOQueries");
+    }
 
-    // Act
-    String ctomRequestBody = "ctomRequestBody";
-    IVRCtomResponseEntityService spyInstance = spy(instance);
-    doReturn(restTemplate).when(spyInstance).getRestTemplate();
+    @Test
+    public void testGetCallActivitiesList_WithValidInput_ReturnsCustomerVO() {
+        // Mock input parameters
+        String crmCountry = "US";
+        String customerId = "12345";
+        int recordCount = 10;
+        int pageNo = 1;
 
-    ResponseEntity<String> response = spyInstance.getResponseEntityForCTOM(
-        ctomRequestBody, idParam, xParamKey1, xParamKey2, countryCodeForParam);
+        // Mock the query result for call activities
+        List<Map<String, String>> callActivitiesList = new ArrayList<>();
+        Map<String, String> callActivityMap = new HashMap<>();
+        callActivityMap.put("X_PRODUCT_TYPE", "101");
+        callActivityMap.put("X_PRIMARY_CALL_TYPE", "201");
+        callActivitiesList.add(callActivityMap);
 
-    // Assert
-    assertNotNull(resultMap);
-    assertNotNull(response);
-    assertEquals("Mocked response body", response.getBody());
+        when(jdbcTemplate.query(anyString(), any(CVRowMapper.class), eq(crmCountry), eq(crmCountry), eq(customerId), anyInt(), anyInt()))
+                .thenReturn(callActivitiesList);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(crmCountry), eq(customerId)))
+                .thenReturn(50);
 
-    // Verify interactions
-    verify(ctomOAuthTokenGenerator, times(1)).getAccessToken(mockParamData);
-    verify(restTemplate, times(1)).postForEntity(anyString(), any(), eq(String.class));
+        // Mock picklist service
+        when(picklistService.getPicklistValueByEntryId("101", false, crmCountry)).thenReturn("Product Type Desc");
+        when(picklistService.getPicklistValueByEntryId("201", false, crmCountry)).thenReturn("Primary Call Type Desc");
+
+        // Call the method
+        CustomerVO result = myivrJdbcDao.getCallActivitiesList(crmCountry, crmCountry, customerId, recordCount, pageNo);
+
+        // Verify results
+        assertNotNull(result);
+        assertEquals(pageNo, result.getCurrentPage());
+        assertEquals(1, result.getCurrentRecordsCount());
+        assertEquals(50, result.getTotalRecordsCount());
+        assertEquals("Product Type Desc", result.getCallActivitesList().get(0).get("X_PRODUCT_TYPE_DESC"));
+        assertEquals("Primary Call Type Desc", result.getCallActivitesList().get(0).get("X_PRIMARY_CALL_TYPE_DESC"));
+    }
+
+    @Test
+    public void testGetCallActivitiesList_WithCustomerRequest_ReturnsCustomerVO() {
+        // Mock input
+        CustomerRequest customerRequest = new CustomerRequest();
+        customerRequest.setCrmCountry("US");
+        customerRequest.setCustomerID("12345");
+
+        // Mock the query result for call activities
+        List<Map<String, String>> callActivitiesList = new ArrayList<>();
+        Map<String, String> callActivityMap = new HashMap<>();
+        callActivityMap.put("X_PRODUCT_TYPE", "101");
+        callActivityMap.put("X_PRIMARY_CALL_TYPE", "201");
+        callActivitiesList.add(callActivityMap);
+
+        when(jdbcTemplate.query(anyString(), any(CVRowMapper.class), eq("US"), eq("US"), eq("12345")))
+                .thenReturn(callActivitiesList);
+
+        // Mock picklist service
+        when(picklistService.getPicklistValueByEntryId("101", false, "US")).thenReturn("Product Type Desc");
+        when(picklistService.getPicklistValueByEntryId("201", false, "US")).thenReturn("Primary Call Type Desc");
+
+        // Call the method
+        CustomerVO result = myivrJdbcDao.getCallActivitiesList(customerRequest);
+
+        // Verify results
+        assertNotNull(result);
+        assertEquals(1, result.getCurrentRecordsCount());
+        assertEquals("Product Type Desc", result.getCallActivitesList().get(0).get("X_PRODUCT_TYPE_DESC"));
+        assertEquals("Primary Call Type Desc", result.getCallActivitesList().get(0).get("X_PRIMARY_CALL_TYPE_DESC"));
+    }
+
+    @Test(expected = NullPointerException.class)
+    public void testGetCallActivitiesList_NullQueryStore_ThrowsException() {
+        // Clear the query store to simulate the issue
+        myivrJdbcDao.setQueryStore(null);
+
+        // Call the method, expecting it to throw an exception
+        myivrJdbcDao.getCallActivitiesList("US", "US", "12345", 10, 1);
+    }
 }
