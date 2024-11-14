@@ -1,17 +1,89 @@
-Subject: Issue with Call Delays and Difficulty in Task Concentration
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
-Hi Sindha,
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 
-I wanted to bring up an issue I’ve been experiencing with the current call process. For every call, after typing CTI_TEST and clicking, there’s a wait time of around 18 to 20 seconds for the call to start. Additionally, when I click mute, it takes another 10 to 15 seconds to activate. Overall, each call is consuming around 1 to 2 minutes just on these delays.
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.runners.MockitoJUnitRunner;
+import org.springframework.beans.factory.annotation.Autowired;
 
-These delays are also impacting my focus, as I find it difficult to concentrate on other tasks effectively due to the interruptions. Sometimes I’m even added to the call late, which adds to the disruption.
+@RunWith(MockitoJUnitRunner.class)
+public class CallActivityActionImplTest {
 
-Could we look into ways to reduce these wait times, or possibly automate some of the repetitive actions? This could save a considerable amount of time per call and improve productivity.
+    @Mock
+    private CallActivityRepository callActivityRepository;
 
-Thank you for your attention to this matter.
+    @Mock
+    private VerificationScriptProxy proxy;
 
-Best regards,
-[Your Name]
+    @Mock
+    private VerificationScriptProxyIE IEProxy;
 
-Let me know if there’s anything else you’d like to add or modify!
+    @InjectMocks
+    private CallActivityActionImpl callActivityAction;
 
+    private GenesysCallActivity genCall;
+
+    private CallActivity call;
+
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+        genCall = new GenesysCallActivity();
+        genCall.setCallRefNo("123456789");  // Initialize with test data
+
+        call = new CallActivity();
+        call.setAvailableAuth("auth1|auth2|auth3");  // Set up available authentication methods
+    }
+
+    @Test
+    public void testSaveGenCallActivity() throws Exception {
+        when(callActivityRepository.saveGenesysCallActivity(genCall)).thenReturn(genCall);
+
+        GenesysCallActivity result = callActivityAction.saveGenCallActivity(genCall);
+        assertNotNull(result);
+        verify(callActivityRepository, times(1)).saveGenesysCallActivity(genCall);
+    }
+
+    @Test
+    public void testRemoveFromListOfAuthentications() {
+        // Assuming we are removing "auth2" from the list
+        String authMethod = "auth2";
+        call.setTwoFaVerified(true);
+
+        callActivityAction.removeFromListOfAuthentications(call, authMethod);
+
+        // Verify if "auth2" was removed from the list
+        assertFalse(call.getAvailableAuth().contains(authMethod));
+    }
+
+    @Test
+    public void testGetGenesysCallActivityByRelId() throws Exception {
+        String relId = "12345";
+        GenesysCallActivity expectedCallActivity = new GenesysCallActivity();
+        when(callActivityRepository.findByRelId(relId)).thenReturn(expectedCallActivity);
+
+        GenesysCallActivity result = callActivityAction.getGenesysCallActivityByRelId(relId);
+        assertEquals(expectedCallActivity, result);
+        verify(callActivityRepository, times(1)).findByRelId(relId);
+    }
+
+    @Test
+    public void testSensitiveCustomerFlag() {
+        String relId = "12345";
+        String countryCode = "IN";
+        String expectedFlag = "Y";
+        when(callActivityRepository.getSenstiveCustomer(relId, countryCode)).thenReturn(expectedFlag);
+
+        String result = callActivityAction.senstiveCustomerFlag(relId, countryCode);
+        assertEquals(expectedFlag, result);
+        verify(callActivityRepository, times(1)).getSenstiveCustomer(relId, countryCode);
+    }
+}
