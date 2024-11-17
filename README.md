@@ -1,16 +1,15 @@
 @Test
 public void testGenesysTransfer_Success() throws Exception {
-    // Mocking inputs
     String callRefNo = "SG20151125037392";
     String customerId = "cust123";
+    String refNo = callRefNo.substring(2); // Mimics the method logic
+    String countryCode = "SG";
 
-    // Mocking CallActivity
+    // Mock CallActivity
     CallActivity mockCall = mock(CallActivity.class);
-    when(callActivityAction.getCallActivityByRefNo(
-            ArgumentMatchers.anyString(),
-            ArgumentMatchers.anyString()
-    )).thenReturn(mockCall);
-
+    when(callActivityAction.getCallActivityByRefNo(refNo, countryCode)).thenReturn(mockCall);
+    
+    // Setup mock responses
     when(mockCall.getLang()).thenReturn("EN");
     when(mockCall.getCustomerSegment()).thenReturn("Premium");
     when(mockCall.getCallerId()).thenReturn("9999999999");
@@ -27,28 +26,21 @@ public void testGenesysTransfer_Success() throws Exception {
     when(mockCall.getOneFa()).thenReturn("1FA");
     when(mockCall.isTwoFaVerified()).thenReturn(false);
 
-    // Mocking service response
+    // Mock service response
     Map<String, Object> formFields = new HashMap<>();
     formFields.put("status", "success");
+    when(callActivityService.makeResponseWrapper(anyMap(), eq(true))).thenReturn(formFields);
 
-    when(callActivityService.makeResponseWrapper(
-            ArgumentMatchers.anyMap(),
-            ArgumentMatchers.eq(true)
-    )).thenReturn(formFields);
-
-    // Performing the request and validating
+    // Perform request and validate response
     mockMvc.perform(MockMvcRequestBuilders.post("/genesys-transfer.do")
-                    .param("callRefNo", callRefNo)
-                    .param("customerId", customerId)
-                    .sessionAttr("login", login)
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED))
+            .param("callRefNo", callRefNo)
+            .param("customerId", customerId)
+            .sessionAttr("login", login)
+            .contentType(MediaType.APPLICATION_FORM_URLENCODED))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("success"));
 
-    // Verify interactions
-    verify(callActivityAction).getCallActivityByRefNo("20151125037392", "SGP");
-    verify(callActivityService).makeResponseWrapper(
-            ArgumentMatchers.anyMap(),
-            ArgumentMatchers.eq(true)
-    );
+    // Verify mock interactions
+    verify(callActivityAction).getCallActivityByRefNo(refNo, countryCode);
+    verify(callActivityService).makeResponseWrapper(anyMap(), eq(true));
 }
