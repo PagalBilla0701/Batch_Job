@@ -1,78 +1,163 @@
-@Test
-public void testGenesysTransfer_Success() throws Exception {
-    // Test Input
-    String callRefNo = "SG23456789";
-    String refNo = "23456789";
-    String customerId = "custId123";
-    String countryShortDesc = "SGP";
+public class CallActivityControllerTest {
 
-    // Mock LoginBean and UserBean
-    UserBean userBean = new UserBean();
-    userBean.setCountryShortDesc(countryShortDesc);
-    LoginBean login = new LoginBean();
-    login.setUserBean(userBean);
+    @Mock
+    protected GridDataAction gridDataAction;
 
-    // Mock CallActivity
-    CallActivity mockCallActivity = new CallActivity();
-    mockCallActivity.setLang("EN");
-    mockCallActivity.setCustomerSegment("Priority");
-    mockCallActivity.setCallerId("12345");
-    mockCallActivity.setDnis("67890");
-    mockCallActivity.setIdntfTyp("Passport");
-    mockCallActivity.setIdBlockcode("BLOCK1");
-    mockCallActivity.setAuthBlockCode("AUTH1");
-    mockCallActivity.setSelfSrvcCode("SELF1");
-    mockCallActivity.setAvailableAuth("OTP|ST");
-    mockCallActivity.setCustIdIVR("A0198678");
-    mockCallActivity.setLastMobno("9876543210");
-    mockCallActivity.setRmn("rmn123");
-    mockCallActivity.setOneFa("2+1");
-    mockCallActivity.setTwoFa("3+1");
-    mockCallActivity.setOneFaVerified(true);
-    mockCallActivity.setTwoFaVerified(true);
+    @Mock
+    public CallActivityService callActivityService;
 
-    // Mock Dependencies
-    when(callActivityAction.getCallActivityByRefNo(refNo, countryShortDesc)).thenReturn(mockCallActivity);
+    @Mock
+    private CallActivityAction callActivityAction;
 
-    Map<String, String> transferPointsMap = new HashMap<>();
-    transferPointsMap.put("Start", "Start Menu");
-    transferPointsMap.put("MM", "Main menu");
-    transferPointsMap.put("ARE", "Account related enquiries");
-    transferPointsMap.put("PBM", "Phone banking menu");
-    transferPointsMap.put("BE", "Balance Enquiry");
-    transferPointsMap.put("CASA", "CASA menu");
-    transferPointsMap.put("CCPL", "CCPL Menu");
+    @Mock
+    @Qualifier("CemsSectionDataUiIntegrator")
+    private CemsUiIntegrator cemsUiIntegrator;
 
-    when(callActivityService.makeResponseWrapper(anyMap(), eq(true))).thenAnswer(invocation -> invocation.getArgument(0));
+    @Mock
+    CVQuestionAction cvQuestionAction;
 
-    // Call the method under test
-    ModelMap model = new ModelMap();
-    Object response = controller.genesysTransfer(login, callRefNo, customerId, model);
+    @Mock
+    private AppMessageSourceHelper messageHelper;
 
-    // Verify Results
-    assertNotNull(response);
-    assertTrue(response instanceof Map);
+    @Mock
+    private UserAction userAction;
 
-    @SuppressWarnings("unchecked")
-    Map<String, Object> responseMap = (Map<String, Object>) response;
+    @Mock
+    @Qualifier("menuAccessRepository")
+    private MenuAccessRepository menuAccessRepository;
 
-    assertEquals("EN", responseMap.get("CTI_LANGUAGE"));
-    assertEquals("Priority", responseMap.get("CTI_SEGMENT"));
-    assertEquals("12345", responseMap.get("CTI_CALLERID"));
-    assertEquals("67890", responseMap.get("CTI_DNIS"));
-    assertEquals("Passport", responseMap.get("CTI_IDENTIFICATIONTYPE"));
-    assertEquals("BLOCK1", responseMap.get("CTI_IDENT_BLOCKCODES"));
-    assertEquals("AUTH1", responseMap.get("CTI_AUTH_BLOCKCODES"));
-    assertEquals("SELF1", responseMap.get("CTI_SELF_SERVICE_BLOCKCODES"));
-    assertEquals("OTP|ST", responseMap.get("CTI_AVAILABLEAUTHENTICATION"));
-    assertEquals("A0198678", responseMap.get("CTI_RELATIONSHIPID"));
-    assertEquals("9876543210", responseMap.get("CTI_MOBILE_NUMBER"));
-    assertEquals("rmn123", responseMap.get("CTI_RMN"));
-    assertEquals("2+1/5", responseMap.get("CTI_VER1"));
-    assertEquals("3+1|S", responseMap.get("CTI_VER2"));
-    assertEquals(transferPointsMap, responseMap.get("transferPoints"));
+    @Mock
+    private com.scb.cems.service.MenuService menuService;
 
-    // Verify Interactions
-    verify(callActivityAction).getCallActivityByRefNo(refNo, countryShortDesc);
-    verify(callActivityService).makeResponseWrapper(anyMap(), eq(true));
+    @Mock
+    private S2SOpportunityService s250pportunityService;
+
+    @Mock
+    private CallActivityEDMIService callActivityEDMIService;
+
+    @Mock
+    private CemsUtil cemsUtil;
+
+    @Mock
+    private S2OpportunitylistingFactory opptyListingFactory;
+
+    @Mock
+    private ParamRepository paramRepository;
+
+    @Mock
+    private BLPCIDSSDAO BIPCIDSSDAO;
+
+    @Mock
+    private SoftTokenPropertiesUtil softTokenPropertiesUtil;
+
+    // Added as part of TSYS implementation
+    @Mock
+    private ODSCpanTpanService odsCpanTpanService;
+
+    @Mock
+    private TSYSKongCommonService tsysKongCommonService;
+
+    @Mock
+    SectionDataResponse sectionResponse;
+
+    @InjectMocks
+    CallActivityController controller;
+
+    GenesysCallActivity genCall;
+
+    LoginBean login;
+
+    ModelMap model;
+
+    UserBean userBean;
+
+    CallActivity call;
+
+    Map<String, String> responseMap;
+
+    Map finalMap;
+    Map header;
+
+    GenesysRequestData genesysData;
+
+    private MockMvc mockMvc;
+
+    @InjectMocks
+    private CallActivityController callActivityController;
+
+    @Before
+    public void setup() {
+        genCall = new GenesysCallActivity();
+        genCall.setAvailableAuth("OTP|ST");
+        genCall.setOneFa("2+1");
+
+        call = new CallActivity();
+        model = new ModelMap();
+
+        login = new LoginBean();
+        userBean = new UserBean();
+        userBean.setCountryShortDesc("SGP");
+        userBean.setCountryCode("SG");
+        userBean.setInstanceCode("CB_SG");
+        userBean.setFullname("XXXX");
+
+        login.setUserBean(userBean);
+        login.setUsername("1200046");
+
+        call = new CallActivity("23456789", "SGP");
+        call.setCustId("A0198678");
+        call.setAccountNoIVR("123456790");
+
+        header = ArrayUtils.toMap(new Object[][]{
+            {"timestamp", GregorianCalendar.getInstance().getTimeInMillis()},
+            {"responseStatus", "true"}
+        });
+
+        responseMap = new HashMap<>();
+        responseMap.put("RelationshipNo", call.getCustId());
+        responseMap.put("AccountNo", call.getAccountNoIVR());
+        responseMap.put("callRefNo", "SG23456789");
+        responseMap.put("type", "ST");
+
+        finalMap = ArrayUtils.toMap(new Object[][]{
+            {"header", header},
+            {"body", responseMap},
+            {"statusCode", "OK"}
+        });
+
+        genesysData = new GenesysRequestData();
+        genesysData.setAccountNo("123456790");
+        genesysData.setRelId("A0198678");
+
+        MockitoAnnotations.openMocks(this);
+
+        mockMvc = MockMvcBuilders.standaloneSetup(callActivityController).build();
+    }
+
+    @Test
+    public void testGenesysTriggerAttachedData() throws Exception {
+        // Mocking behavior
+        when(callActivityAction.getCallActivityByRefNo(anyString(), anyString())).thenReturn(call);
+        when(callActivityService.makeResponseWrapper(anyMap(), eq(true))).thenReturn(finalMap);
+
+        // Perform the request
+        mockMvc.perform(post("/genesys-trigger-verify.do")
+                .param("callActivityNo", "SG23456789")
+                .param("relationshipNo", "A0198678")
+                .param("type", "ST")
+                .param("customerName", "John Doe")
+                .param("productType", "Loan")
+                .param("customerAccountNo", "1234567890")
+                .sessionAttr("login", login))
+                .andExpect(status().isOk()) // Expecting OK response
+                .andExpect(jsonPath("$.statusCode").value("OK"))
+                .andExpect(jsonPath("$.header.responseStatus").value("true"))
+                .andExpect(jsonPath("$.body.callRefNo").value("SG23456789"))
+                .andExpect(jsonPath("$.body.RelationshipNo").value("A0198678"));
+        
+        // Verify that service methods are called
+        verify(callActivityAction, times(1)).getCallActivityByRefNo(anyString(), anyString());
+        verify(callActivityService, times(1)).makeResponseWrapper(anyMap(), eq(true));
+    }
+
 }
