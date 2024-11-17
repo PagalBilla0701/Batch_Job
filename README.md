@@ -1,53 +1,51 @@
 @Test
-public void testButtonClickInfo_Success() throws Exception {
-    // Mock input parameters
-    String callRefNo = "SG20151125037392";
-    String type = "ST";
+public void loadNewCallActivityGenesys_test() throws Exception {
+    // Mock data for customer information
+    Map<String, String> customerMap = new HashMap<>();
+    customerMap.put("fullName", "XXXX");
+    customerMap.put("gender", "F");
+    customerMap.put("genderDesc", "Female");
+    customerMap.put("staffCategoryCode", "01");
+    customerMap.put("staffCategoryDesc", "STAFF");
 
-    // Mock login bean
-    LoginBean loginBean = new LoginBean();
-    UserBean userBean = new UserBean();
-    userBean.setCountryShortDesc("SG");
-    loginBean.setUserBean(userBean);
+    // Mock data for account information
+    Map<String, String> accountMap = new HashMap<>();
+    accountMap.put("custAcctProdType", "Savings Account");
+    accountMap.put("custAcctIdentifier", "ACCT123456790");
+    accountMap.put("currencyCode", "SGD");
 
-    // Mock CallActivity object
-    CallActivity mockCallActivity = new CallActivity();
-    mockCallActivity.setCustId("custId123");
-    mockCallActivity.setAccountNo("accountNo123");
-    mockCallActivity.setRmn("rmn123");
-    mockCallActivity.setOutboundCall("Y");
-    mockCallActivity.setCustomerIdentified(true);
+    // Mock objects
+    CallActivity call = new CallActivity(); // Replace with actual CallActivity instance
+    CallActivity genCall = new CallActivity(); // Replace with actual GenCall instance
+    SectionResponse sectionResponse = new SectionResponse(); // Replace with actual SectionResponse instance
+    Login login = new Login(); // Replace with actual Login object
+    Model model = new ExtendedModelMap();
+    GenesysData genesysData = new GenesysData(); // Replace with actual GenesysData object
 
-    // Mock dependencies
-    when(callActivityAction.getCallActivityByRefNo("20151125037392", "SG")).thenReturn(mockCallActivity);
+    // Mock behavior
+    Mockito.when(callActivityService.getCustomerInfo("SG", "A0198678")).thenReturn(customerMap);
+    Mockito.when(callActivityService.isSoftTokenEnableForCountry("SG")).thenReturn("true");
+    Mockito.when(callActivityService.identifyAccountOrCustomerId("SG", "123456790")).thenReturn(accountMap);
+    Mockito.when(callActivityAction.saveCallActivity(ArgumentMatchers.any())).thenReturn("SG23456789");
+    Mockito.when(callActivityAction.getCallActivityByRefNo("SG23456789", "SGP")).thenReturn(call);
+    Mockito.doNothing().when(callActivityService).addToRecentItem(call, login);
+    Mockito.when(callActivityAction.saveGenCallActivity(ArgumentMatchers.any())).thenReturn(genCall);
+    Mockito.when(callActivityService.renderCallInfo(call, false, "SG", login)).thenReturn(sectionResponse);
 
-    Map<String, Object> expectedFormFields = new HashMap<>();
-    expectedFormFields.put("RelationshipNo", "custId123");
-    expectedFormFields.put("AccountNo", "accountNo123");
-    expectedFormFields.put("callRefNo", callRefNo);
-    expectedFormFields.put("type", type);
-    expectedFormFields.put("MobileNo", "rmn123");
-    expectedFormFields.put("identified", "true");
+    // Ensure user is authorized
+    Mockito.when(callActivityService.isAuthorized(ArgumentMatchers.any(), ArgumentMatchers.any()))
+           .thenReturn(true); // Adjust the method signature if needed
 
-    when(callActivityService.makeResponseWrapper(expectedFormFields, true)).thenReturn(expectedFormFields);
+    // Act
+    controller.loadNewCallActivityGenesys(login, "SG", "1234-4555", model, genesysData);
 
-    // Call the method under test
-    ModelMap model = new ModelMap();
-    Object response = controller.buttonClickInfo(loginBean, type, callRefNo, model);
-
-    // Verify results
-    assertNotNull(response);
-    assertTrue(response instanceof Map);
-    @SuppressWarnings("unchecked")
-    Map<String, Object> responseMap = (Map<String, Object>) response;
-    assertEquals("custId123", responseMap.get("RelationshipNo"));
-    assertEquals("accountNo123", responseMap.get("AccountNo"));
-    assertEquals(callRefNo, responseMap.get("callRefNo"));
-    assertEquals(type, responseMap.get("type"));
-    assertEquals("rmn123", responseMap.get("MobileNo"));
-    assertEquals("true", responseMap.get("identified"));
-
-    // Verify mock interactions
-    verify(callActivityAction).getCallActivityByRefNo("20151125037392", "SG");
-    verify(callActivityService).makeResponseWrapper(expectedFormFields, true);
+    // Verify interactions
+    verify(callActivityService, times(2)).getCustomerInfo("SG", "A0198678");
+    verify(callActivityService).isSoftTokenEnableForCountry("SG");
+    verify(callActivityService, atLeast(1)).identifyAccountOrCustomerId("SG", "123456790");
+    verify(callActivityAction).saveCallActivity(ArgumentMatchers.any());
+    verify(callActivityAction).getCallActivityByRefNo("SG23456789", "SGP");
+    verify(callActivityService).addToRecentItem(call, login);
+    verify(callActivityAction).saveGenCallActivity(ArgumentMatchers.any());
+    verify(callActivityService).renderCallInfo(call, false, "SG", login);
 }
