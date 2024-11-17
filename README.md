@@ -1,51 +1,54 @@
 @Test
-public void loadNewCallActivityGenesys_test() throws Exception {
-    // Mock data for customer information
-    Map<String, String> customerMap = new HashMap<>();
-    customerMap.put("fullName", "XXXX");
-    customerMap.put("gender", "F");
-    customerMap.put("genderDesc", "Female");
-    customerMap.put("staffCategoryCode", "01");
-    customerMap.put("staffCategoryDesc", "STAFF");
+public void testGenesysTransfer_Success() throws Exception {
+    // Mocking inputs
+    String callRefNo = "SG20151125037392";
+    String customerId = "cust123";
 
-    // Mock data for account information
-    Map<String, String> accountMap = new HashMap<>();
-    accountMap.put("custAcctProdType", "Savings Account");
-    accountMap.put("custAcctIdentifier", "ACCT123456790");
-    accountMap.put("currencyCode", "SGD");
+    // Mocking CallActivity
+    CallActivity mockCall = mock(CallActivity.class);
+    when(callActivityAction.getCallActivityByRefNo(
+            ArgumentMatchers.anyString(),
+            ArgumentMatchers.anyString()
+    )).thenReturn(mockCall);
 
-    // Mock objects
-    CallActivity call = new CallActivity(); // Replace with actual CallActivity instance
-    CallActivity genCall = new CallActivity(); // Replace with actual GenCall instance
-    SectionResponse sectionResponse = new SectionResponse(); // Replace with actual SectionResponse instance
-    Login login = new Login(); // Replace with actual Login object
-    Model model = new ExtendedModelMap();
-    GenesysData genesysData = new GenesysData(); // Replace with actual GenesysData object
+    when(mockCall.getLang()).thenReturn("EN");
+    when(mockCall.getCustomerSegment()).thenReturn("Premium");
+    when(mockCall.getCallerId()).thenReturn("9999999999");
+    when(mockCall.getDnis()).thenReturn("12345");
+    when(mockCall.getIdntfTyp()).thenReturn("ID123");
+    when(mockCall.getIdBlockcode()).thenReturn("BC001");
+    when(mockCall.getAuthBlockCode()).thenReturn("AC002");
+    when(mockCall.getSelfSrvcCode()).thenReturn("SSC003");
+    when(mockCall.getAvailableAuth()).thenReturn("OTP|ST");
+    when(mockCall.getCustIdIVR()).thenReturn("CID001");
+    when(mockCall.getLastMobno()).thenReturn("8888888888");
+    when(mockCall.getRmn()).thenReturn("RMN001");
+    when(mockCall.isOneFaVerifed()).thenReturn(true);
+    when(mockCall.getOneFa()).thenReturn("1FA");
+    when(mockCall.isTwoFaVerified()).thenReturn(false);
 
-    // Mock behavior
-    Mockito.when(callActivityService.getCustomerInfo("SG", "A0198678")).thenReturn(customerMap);
-    Mockito.when(callActivityService.isSoftTokenEnableForCountry("SG")).thenReturn("true");
-    Mockito.when(callActivityService.identifyAccountOrCustomerId("SG", "123456790")).thenReturn(accountMap);
-    Mockito.when(callActivityAction.saveCallActivity(ArgumentMatchers.any())).thenReturn("SG23456789");
-    Mockito.when(callActivityAction.getCallActivityByRefNo("SG23456789", "SGP")).thenReturn(call);
-    Mockito.doNothing().when(callActivityService).addToRecentItem(call, login);
-    Mockito.when(callActivityAction.saveGenCallActivity(ArgumentMatchers.any())).thenReturn(genCall);
-    Mockito.when(callActivityService.renderCallInfo(call, false, "SG", login)).thenReturn(sectionResponse);
+    // Mocking service response
+    Map<String, Object> formFields = new HashMap<>();
+    formFields.put("status", "success");
 
-    // Ensure user is authorized
-    Mockito.when(callActivityService.isAuthorized(ArgumentMatchers.any(), ArgumentMatchers.any()))
-           .thenReturn(true); // Adjust the method signature if needed
+    when(callActivityService.makeResponseWrapper(
+            ArgumentMatchers.anyMap(),
+            ArgumentMatchers.eq(true)
+    )).thenReturn(formFields);
 
-    // Act
-    controller.loadNewCallActivityGenesys(login, "SG", "1234-4555", model, genesysData);
+    // Performing the request and validating
+    mockMvc.perform(MockMvcRequestBuilders.post("/genesys-transfer.do")
+                    .param("callRefNo", callRefNo)
+                    .param("customerId", customerId)
+                    .sessionAttr("login", login)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("success"));
 
     // Verify interactions
-    verify(callActivityService, times(2)).getCustomerInfo("SG", "A0198678");
-    verify(callActivityService).isSoftTokenEnableForCountry("SG");
-    verify(callActivityService, atLeast(1)).identifyAccountOrCustomerId("SG", "123456790");
-    verify(callActivityAction).saveCallActivity(ArgumentMatchers.any());
-    verify(callActivityAction).getCallActivityByRefNo("SG23456789", "SGP");
-    verify(callActivityService).addToRecentItem(call, login);
-    verify(callActivityAction).saveGenCallActivity(ArgumentMatchers.any());
-    verify(callActivityService).renderCallInfo(call, false, "SG", login);
+    verify(callActivityAction).getCallActivityByRefNo("20151125037392", "SGP");
+    verify(callActivityService).makeResponseWrapper(
+            ArgumentMatchers.anyMap(),
+            ArgumentMatchers.eq(true)
+    );
 }
