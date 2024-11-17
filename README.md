@@ -1,46 +1,78 @@
 @Test
 public void testGenesysTransfer_Success() throws Exception {
-    String callRefNo = "SG20151125037392";
-    String customerId = "cust123";
-    String refNo = callRefNo.substring(2); // Mimics the method logic
-    String countryCode = "SG";
+    // Test Input
+    String callRefNo = "SG23456789";
+    String refNo = "23456789";
+    String customerId = "custId123";
+    String countryShortDesc = "SGP";
+
+    // Mock LoginBean and UserBean
+    UserBean userBean = new UserBean();
+    userBean.setCountryShortDesc(countryShortDesc);
+    LoginBean login = new LoginBean();
+    login.setUserBean(userBean);
 
     // Mock CallActivity
-    CallActivity mockCall = mock(CallActivity.class);
-    when(callActivityAction.getCallActivityByRefNo(refNo, countryCode)).thenReturn(mockCall);
-    
-    // Setup mock responses
-    when(mockCall.getLang()).thenReturn("EN");
-    when(mockCall.getCustomerSegment()).thenReturn("Premium");
-    when(mockCall.getCallerId()).thenReturn("9999999999");
-    when(mockCall.getDnis()).thenReturn("12345");
-    when(mockCall.getIdntfTyp()).thenReturn("ID123");
-    when(mockCall.getIdBlockcode()).thenReturn("BC001");
-    when(mockCall.getAuthBlockCode()).thenReturn("AC002");
-    when(mockCall.getSelfSrvcCode()).thenReturn("SSC003");
-    when(mockCall.getAvailableAuth()).thenReturn("OTP|ST");
-    when(mockCall.getCustIdIVR()).thenReturn("CID001");
-    when(mockCall.getLastMobno()).thenReturn("8888888888");
-    when(mockCall.getRmn()).thenReturn("RMN001");
-    when(mockCall.isOneFaVerifed()).thenReturn(true);
-    when(mockCall.getOneFa()).thenReturn("1FA");
-    when(mockCall.isTwoFaVerified()).thenReturn(false);
+    CallActivity mockCallActivity = new CallActivity();
+    mockCallActivity.setLang("EN");
+    mockCallActivity.setCustomerSegment("Priority");
+    mockCallActivity.setCallerId("12345");
+    mockCallActivity.setDnis("67890");
+    mockCallActivity.setIdntfTyp("Passport");
+    mockCallActivity.setIdBlockcode("BLOCK1");
+    mockCallActivity.setAuthBlockCode("AUTH1");
+    mockCallActivity.setSelfSrvcCode("SELF1");
+    mockCallActivity.setAvailableAuth("OTP|ST");
+    mockCallActivity.setCustIdIVR("A0198678");
+    mockCallActivity.setLastMobno("9876543210");
+    mockCallActivity.setRmn("rmn123");
+    mockCallActivity.setOneFa("2+1");
+    mockCallActivity.setTwoFa("3+1");
+    mockCallActivity.setOneFaVerified(true);
+    mockCallActivity.setTwoFaVerified(true);
 
-    // Mock service response
-    Map<String, Object> formFields = new HashMap<>();
-    formFields.put("status", "success");
-    when(callActivityService.makeResponseWrapper(anyMap(), eq(true))).thenReturn(formFields);
+    // Mock Dependencies
+    when(callActivityAction.getCallActivityByRefNo(refNo, countryShortDesc)).thenReturn(mockCallActivity);
 
-    // Perform request and validate response
-    mockMvc.perform(MockMvcRequestBuilders.post("/genesys-transfer.do")
-            .param("callRefNo", callRefNo)
-            .param("customerId", customerId)
-            .sessionAttr("login", login)
-            .contentType(MediaType.APPLICATION_FORM_URLENCODED))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value("success"));
+    Map<String, String> transferPointsMap = new HashMap<>();
+    transferPointsMap.put("Start", "Start Menu");
+    transferPointsMap.put("MM", "Main menu");
+    transferPointsMap.put("ARE", "Account related enquiries");
+    transferPointsMap.put("PBM", "Phone banking menu");
+    transferPointsMap.put("BE", "Balance Enquiry");
+    transferPointsMap.put("CASA", "CASA menu");
+    transferPointsMap.put("CCPL", "CCPL Menu");
 
-    // Verify mock interactions
-    verify(callActivityAction).getCallActivityByRefNo(refNo, countryCode);
+    when(callActivityService.makeResponseWrapper(anyMap(), eq(true))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    // Call the method under test
+    ModelMap model = new ModelMap();
+    Object response = controller.genesysTransfer(login, callRefNo, customerId, model);
+
+    // Verify Results
+    assertNotNull(response);
+    assertTrue(response instanceof Map);
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> responseMap = (Map<String, Object>) response;
+
+    assertEquals("EN", responseMap.get("CTI_LANGUAGE"));
+    assertEquals("Priority", responseMap.get("CTI_SEGMENT"));
+    assertEquals("12345", responseMap.get("CTI_CALLERID"));
+    assertEquals("67890", responseMap.get("CTI_DNIS"));
+    assertEquals("Passport", responseMap.get("CTI_IDENTIFICATIONTYPE"));
+    assertEquals("BLOCK1", responseMap.get("CTI_IDENT_BLOCKCODES"));
+    assertEquals("AUTH1", responseMap.get("CTI_AUTH_BLOCKCODES"));
+    assertEquals("SELF1", responseMap.get("CTI_SELF_SERVICE_BLOCKCODES"));
+    assertEquals("OTP|ST", responseMap.get("CTI_AVAILABLEAUTHENTICATION"));
+    assertEquals("A0198678", responseMap.get("CTI_RELATIONSHIPID"));
+    assertEquals("9876543210", responseMap.get("CTI_MOBILE_NUMBER"));
+    assertEquals("rmn123", responseMap.get("CTI_RMN"));
+    assertEquals("2+1/5", responseMap.get("CTI_VER1"));
+    assertEquals("3+1|S", responseMap.get("CTI_VER2"));
+    assertEquals(transferPointsMap, responseMap.get("transferPoints"));
+
+    // Verify Interactions
+    verify(callActivityAction).getCallActivityByRefNo(refNo, countryShortDesc);
     verify(callActivityService).makeResponseWrapper(anyMap(), eq(true));
 }
