@@ -1,163 +1,94 @@
-public class CallActivityControllerTest {
+@Test
+public void testGenesysTriggerAttachedData_Success() throws Exception {
+    // Mock input parameters
+    String callRefNo = "SG20151125037392";
+    String relId = "REL123";
+    String type = "TYPE_A";
+    String customerName = "John Doe";
+    String productType = "Savings";
+    String accountNumber = "ACC123";
 
-    @Mock
-    protected GridDataAction gridDataAction;
+    // Mock login bean
+    LoginBean loginBean = new LoginBean();
+    UserBean userBean = new UserBean();
+    userBean.setCountryCode("65");
+    userBean.setCountryShortDesc("SG");
+    loginBean.setUserBean(userBean);
 
-    @Mock
-    public CallActivityService callActivityService;
+    // Mock CallActivity object
+    CallActivity mockCallActivity = new CallActivity();
+    mockCallActivity.setLang("EN");
+    mockCallActivity.setCustomerSegment("Premium");
+    mockCallActivity.setCallerId("CallerID123");
+    mockCallActivity.setDnis("DNIS123");
+    mockCallActivity.setIdntfTyp("IDType123");
+    mockCallActivity.setIdBlockcode("Block123");
+    mockCallActivity.setAuthBlockCode("AuthBlock123");
+    mockCallActivity.setSelfSrvcCode("SelfService123");
+    mockCallActivity.setAvailableAuth("AuthAvailable");
+    mockCallActivity.setRmn("9876543210");
+    mockCallActivity.setMobileNo("9876543210");
+    mockCallActivity.setAni("ANI123");
+    mockCallActivity.setOutboundCall("Y");
+    mockCallActivity.setOneFa("OneFA");
+    mockCallActivity.setTwoFa("TwoFA");
+    mockCallActivity.setFailedAuthOne("FailedAuth1");
+    mockCallActivity.setFailedAuthTwo("FailedAuth2");
 
-    @Mock
-    private CallActivityAction callActivityAction;
+    // Mock dependencies
+    when(callActivityAction.getCallActivityByRefNo(callRefNo, "SG")).thenReturn(mockCallActivity);
 
-    @Mock
-    @Qualifier("CemsSectionDataUiIntegrator")
-    private CemsUiIntegrator cemsUiIntegrator;
+    Map<String, Object> expectedFormFields = new HashMap<>();
+    expectedFormFields.put("CTI_LANGUAGE", "EN");
+    expectedFormFields.put("CTI_SEGMENT", "Premium");
+    expectedFormFields.put("CTI_CALLERID", "CallerID123");
+    expectedFormFields.put("CTI_DNIS", "DNIS123");
+    expectedFormFields.put("CTI_IDENTIFICATIONTYPE", "IDType123");
+    expectedFormFields.put("CTI_IDENT_BLOCKCODES", "Block123");
+    expectedFormFields.put("CTI_AUTH_BLOCKCODES", "AuthBlock123");
+    expectedFormFields.put("CTI_SELF_SERVICE_BLOCKCODES", "SelfService123");
+    expectedFormFields.put("CTI_AVAILABLEAUTHENTICATION", "AuthAvailable");
+    expectedFormFields.put("CTI_RELATIONSHIPID", relId);
+    expectedFormFields.put("CTI_MOBILE_NUMBER", "9876543210");
+    expectedFormFields.put("CTI_RMN", "9876543210");
+    expectedFormFields.put("refNo", callRefNo);
+    expectedFormFields.put("CTI_VER1", "OneFAIS");
+    expectedFormFields.put("CTI_VER2", "TwoFAIS");
+    expectedFormFields.put("CTI_ANI", "ANI123");
+    expectedFormFields.put("ENTRY_POINT", type);
 
-    @Mock
-    CVQuestionAction cvQuestionAction;
+    when(callActivityService.makeResponseWrapper(expectedFormFields, true)).thenReturn(expectedFormFields);
 
-    @Mock
-    private AppMessageSourceHelper messageHelper;
+    // Call the method under test
+    ModelMap model = new ModelMap();
+    Object response = controller.genesysTriggerAttachedData(
+        callRefNo, relId, type, customerName, productType, accountNumber, loginBean, model
+    );
 
-    @Mock
-    private UserAction userAction;
+    // Verify results
+    assertNotNull(response);
+    assertTrue(response instanceof Map);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> responseMap = (Map<String, Object>) response;
+    assertEquals("EN", responseMap.get("CTI_LANGUAGE"));
+    assertEquals("Premium", responseMap.get("CTI_SEGMENT"));
+    assertEquals("CallerID123", responseMap.get("CTI_CALLERID"));
+    assertEquals("DNIS123", responseMap.get("CTI_DNIS"));
+    assertEquals("IDType123", responseMap.get("CTI_IDENTIFICATIONTYPE"));
+    assertEquals("Block123", responseMap.get("CTI_IDENT_BLOCKCODES"));
+    assertEquals("AuthBlock123", responseMap.get("CTI_AUTH_BLOCKCODES"));
+    assertEquals("SelfService123", responseMap.get("CTI_SELF_SERVICE_BLOCKCODES"));
+    assertEquals("AuthAvailable", responseMap.get("CTI_AVAILABLEAUTHENTICATION"));
+    assertEquals(relId, responseMap.get("CTI_RELATIONSHIPID"));
+    assertEquals("9876543210", responseMap.get("CTI_MOBILE_NUMBER"));
+    assertEquals("9876543210", responseMap.get("CTI_RMN"));
+    assertEquals(callRefNo, responseMap.get("refNo"));
+    assertEquals("OneFAIS", responseMap.get("CTI_VER1"));
+    assertEquals("TwoFAIS", responseMap.get("CTI_VER2"));
+    assertEquals("ANI123", responseMap.get("CTI_ANI"));
+    assertEquals(type, responseMap.get("ENTRY_POINT"));
 
-    @Mock
-    @Qualifier("menuAccessRepository")
-    private MenuAccessRepository menuAccessRepository;
-
-    @Mock
-    private com.scb.cems.service.MenuService menuService;
-
-    @Mock
-    private S2SOpportunityService s250pportunityService;
-
-    @Mock
-    private CallActivityEDMIService callActivityEDMIService;
-
-    @Mock
-    private CemsUtil cemsUtil;
-
-    @Mock
-    private S2OpportunitylistingFactory opptyListingFactory;
-
-    @Mock
-    private ParamRepository paramRepository;
-
-    @Mock
-    private BLPCIDSSDAO BIPCIDSSDAO;
-
-    @Mock
-    private SoftTokenPropertiesUtil softTokenPropertiesUtil;
-
-    // Added as part of TSYS implementation
-    @Mock
-    private ODSCpanTpanService odsCpanTpanService;
-
-    @Mock
-    private TSYSKongCommonService tsysKongCommonService;
-
-    @Mock
-    SectionDataResponse sectionResponse;
-
-    @InjectMocks
-    CallActivityController controller;
-
-    GenesysCallActivity genCall;
-
-    LoginBean login;
-
-    ModelMap model;
-
-    UserBean userBean;
-
-    CallActivity call;
-
-    Map<String, String> responseMap;
-
-    Map finalMap;
-    Map header;
-
-    GenesysRequestData genesysData;
-
-    private MockMvc mockMvc;
-
-    @InjectMocks
-    private CallActivityController callActivityController;
-
-    @Before
-    public void setup() {
-        genCall = new GenesysCallActivity();
-        genCall.setAvailableAuth("OTP|ST");
-        genCall.setOneFa("2+1");
-
-        call = new CallActivity();
-        model = new ModelMap();
-
-        login = new LoginBean();
-        userBean = new UserBean();
-        userBean.setCountryShortDesc("SGP");
-        userBean.setCountryCode("SG");
-        userBean.setInstanceCode("CB_SG");
-        userBean.setFullname("XXXX");
-
-        login.setUserBean(userBean);
-        login.setUsername("1200046");
-
-        call = new CallActivity("23456789", "SGP");
-        call.setCustId("A0198678");
-        call.setAccountNoIVR("123456790");
-
-        header = ArrayUtils.toMap(new Object[][]{
-            {"timestamp", GregorianCalendar.getInstance().getTimeInMillis()},
-            {"responseStatus", "true"}
-        });
-
-        responseMap = new HashMap<>();
-        responseMap.put("RelationshipNo", call.getCustId());
-        responseMap.put("AccountNo", call.getAccountNoIVR());
-        responseMap.put("callRefNo", "SG23456789");
-        responseMap.put("type", "ST");
-
-        finalMap = ArrayUtils.toMap(new Object[][]{
-            {"header", header},
-            {"body", responseMap},
-            {"statusCode", "OK"}
-        });
-
-        genesysData = new GenesysRequestData();
-        genesysData.setAccountNo("123456790");
-        genesysData.setRelId("A0198678");
-
-        MockitoAnnotations.openMocks(this);
-
-        mockMvc = MockMvcBuilders.standaloneSetup(callActivityController).build();
-    }
-
-    @Test
-    public void testGenesysTriggerAttachedData() throws Exception {
-        // Mocking behavior
-        when(callActivityAction.getCallActivityByRefNo(anyString(), anyString())).thenReturn(call);
-        when(callActivityService.makeResponseWrapper(anyMap(), eq(true))).thenReturn(finalMap);
-
-        // Perform the request
-        mockMvc.perform(post("/genesys-trigger-verify.do")
-                .param("callActivityNo", "SG23456789")
-                .param("relationshipNo", "A0198678")
-                .param("type", "ST")
-                .param("customerName", "John Doe")
-                .param("productType", "Loan")
-                .param("customerAccountNo", "1234567890")
-                .sessionAttr("login", login))
-                .andExpect(status().isOk()) // Expecting OK response
-                .andExpect(jsonPath("$.statusCode").value("OK"))
-                .andExpect(jsonPath("$.header.responseStatus").value("true"))
-                .andExpect(jsonPath("$.body.callRefNo").value("SG23456789"))
-                .andExpect(jsonPath("$.body.RelationshipNo").value("A0198678"));
-        
-        // Verify that service methods are called
-        verify(callActivityAction, times(1)).getCallActivityByRefNo(anyString(), anyString());
-        verify(callActivityService, times(1)).makeResponseWrapper(anyMap(), eq(true));
-    }
-
+    // Verify mock interactions
+    verify(callActivityAction).getCallActivityByRefNo(callRefNo, "SG");
+    verify(callActivityService).makeResponseWrapper(expectedFormFields, true);
 }
