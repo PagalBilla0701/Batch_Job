@@ -1,5 +1,5 @@
 @Test
-public void testGenesysInitiateOutboundData() throws Exception {
+public void testGenesysInitiateOutboundData_CustomerNotFound() throws Exception {
     // Mock LoginBean and UserBean
     LoginBean loginBean = new LoginBean();
     UserBean userBean = new UserBean();
@@ -8,20 +8,9 @@ public void testGenesysInitiateOutboundData() throws Exception {
 
     // Test inputs
     String customerId = "CUST123";
-    String mobilePhoneNumber = "9876543210";
 
-    // Mock customer info from the service
-    Map<String, String> mockCustomerInfo = new HashMap<>();
-    mockCustomerInfo.put("mobilePhoneNumber", mobilePhoneNumber);
-
-    when(callActivityService.getCustomerInfo("65", customerId)).thenReturn(mockCustomerInfo);
-
-    // Mock response from makeResponseWrapper
-    Map<String, Object> mockResponse = new HashMap<>();
-    mockResponse.put("customerId", customerId);
-    mockResponse.put("mobilePhoneNumber", mobilePhoneNumber);
-
-    when(callActivityService.makeResponseWrapper(anyMap(), eq(true))).thenReturn(mockResponse);
+    // Mock dependencies
+    when(callActivityService.getCustomerInfo("65", customerId)).thenReturn(null);
 
     // Call the method under test
     ModelMap model = new ModelMap();
@@ -30,14 +19,14 @@ public void testGenesysInitiateOutboundData() throws Exception {
     // Verify the response
     assertNotNull(response);
     assertTrue(response instanceof Map);
+
     @SuppressWarnings("unchecked")
     Map<String, Object> responseMap = (Map<String, Object>) response;
 
-    // Validate successful response
-    assertEquals(customerId, responseMap.get("customerId"));
-    assertEquals(mobilePhoneNumber, responseMap.get("mobilePhoneNumber"));
+    // Validate error response
+    assertEquals("Customer not found, cannot initiate outbound call", responseMap.get("error"));
 
-    // Verify service interactions
+    // Verify mock interactions
     verify(callActivityService).getCustomerInfo("65", customerId);
-    verify(callActivityService).makeResponseWrapper(anyMap(), eq(true));
+    verify(callActivityService).makeResponseWrapper(ArgumentMatchers.anyMap(), ArgumentMatchers.eq(false));
 }
