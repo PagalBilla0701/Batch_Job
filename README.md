@@ -1,6 +1,6 @@
 @Test
-public void testGenesysTriggerAttachedData_Success() throws Exception {
-    // Mock input parameters
+public void testGenesysTriggerAttachedData() throws Exception {
+    // Test inputs
     String callRefNo = "SG20151125037392";
     String relId = "REL123";
     String type = "TYPE_A";
@@ -8,14 +8,15 @@ public void testGenesysTriggerAttachedData_Success() throws Exception {
     String productType = "Savings";
     String accountNumber = "ACC123";
 
-    // Mock login bean
+    // Mock loginBean and userBean
     LoginBean loginBean = new LoginBean();
     UserBean userBean = new UserBean();
     userBean.setCountryCode("65");
     userBean.setCountryShortDesc("SG");
+    userBean.setPeoplewiseId("PWISE123"); // Ensure this is set
     loginBean.setUserBean(userBean);
 
-    // Mock CallActivity object
+    // Mock CallActivity
     CallActivity mockCallActivity = new CallActivity();
     mockCallActivity.setLang("EN");
     mockCallActivity.setCustomerSegment("Premium");
@@ -54,7 +55,7 @@ public void testGenesysTriggerAttachedData_Success() throws Exception {
     expectedFormFields.put("refNo", callRefNo);
     expectedFormFields.put("CTI_VER1", "OneFAIS");
     expectedFormFields.put("CTI_VER2", "TwoFAIS");
-    expectedFormFields.put("CTI_ANI", "ANI123");
+    expectedFormFields.put("CTI_ANI", "CEMS_PWISE123");
     expectedFormFields.put("ENTRY_POINT", type);
 
     when(callActivityService.makeResponseWrapper(expectedFormFields, true)).thenReturn(expectedFormFields);
@@ -70,6 +71,7 @@ public void testGenesysTriggerAttachedData_Success() throws Exception {
     assertTrue(response instanceof Map);
     @SuppressWarnings("unchecked")
     Map<String, Object> responseMap = (Map<String, Object>) response;
+
     assertEquals("EN", responseMap.get("CTI_LANGUAGE"));
     assertEquals("Premium", responseMap.get("CTI_SEGMENT"));
     assertEquals("CallerID123", responseMap.get("CTI_CALLERID"));
@@ -85,7 +87,7 @@ public void testGenesysTriggerAttachedData_Success() throws Exception {
     assertEquals(callRefNo, responseMap.get("refNo"));
     assertEquals("OneFAIS", responseMap.get("CTI_VER1"));
     assertEquals("TwoFAIS", responseMap.get("CTI_VER2"));
-    assertEquals("ANI123", responseMap.get("CTI_ANI"));
+    assertEquals("CEMS_PWISE123", responseMap.get("CTI_ANI"));
     assertEquals(type, responseMap.get("ENTRY_POINT"));
 
     // Verify mock interactions
