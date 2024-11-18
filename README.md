@@ -16,12 +16,18 @@ public void testGenesysInitiateOutboundData_CustomerNotFound() throws Exception 
     ModelMap model = new ModelMap();
     Object response = controller.genesysInitiateOutboundData(loginBean, customerId, model);
 
+    // Debug the response
+    System.out.println("Actual Response: " + response);
+
     // Verify the response
     assertNotNull(response);
     assertTrue(response instanceof Map);
 
     @SuppressWarnings("unchecked")
     Map<String, Object> responseMap = (Map<String, Object>) response;
+
+    // Debug the response map
+    System.out.println("Response Map: " + responseMap);
 
     // Validate error response
     assertEquals("Customer not found, cannot initiate outbound call", responseMap.get("error"));
