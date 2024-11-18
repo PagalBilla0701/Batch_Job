@@ -19,7 +19,6 @@ public void testGenesysInitiateOutboundData_CustomerNotFound() throws Exception 
     // Debug the response
     System.out.println("Actual Response: " + response);
 
-    // Verify the response
     assertNotNull(response);
     assertTrue(response instanceof Map);
 
@@ -28,6 +27,7 @@ public void testGenesysInitiateOutboundData_CustomerNotFound() throws Exception 
 
     // Debug the response map
     System.out.println("Response Map: " + responseMap);
+    System.out.println("Error Key: " + responseMap.get("error"));
 
     // Validate error response
     assertEquals("Customer not found, cannot initiate outbound call", responseMap.get("error"));
