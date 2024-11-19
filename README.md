@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import java.lang.reflect.Method;
 import java.util.*;
 
 public class IVRCtomServiceDetailTest {
@@ -37,9 +38,15 @@ public class IVRCtomServiceDetailTest {
         CtomComplaintData mockData = new CtomComplaintData();
         mockData.setTotalElements(5);
         mockData.setContent(Arrays.asList(
-                Map.of("status", "Pending assigned"),
-                Map.of("status", "In-progress"),
-                Map.of("status", "Resolved")
+                new HashMap<String, Object>() {{
+                    put("status", "Pending assigned");
+                }},
+                new HashMap<String, Object>() {{
+                    put("status", "In-progress");
+                }},
+                new HashMap<String, Object>() {{
+                    put("status", "Resolved");
+                }}
         ));
         mockResponseBody.setData(mockData);
 
@@ -91,34 +98,48 @@ public class IVRCtomServiceDetailTest {
     }
 
     @Test
-    public void testGetOpenComplaintsCount() {
+    public void testGetOpenComplaintsCount() throws Exception {
         // Mock response body
         CtomComplaintResponseBody mockResponseBody = new CtomComplaintResponseBody();
         CtomComplaintData mockData = new CtomComplaintData();
         mockData.setContent(Arrays.asList(
-                Map.of("status", "Pending assigned"),
-                Map.of("status", "In-progress"),
-                Map.of("status", "Resolved")
+                new HashMap<String, Object>() {{
+                    put("status", "Pending assigned");
+                }},
+                new HashMap<String, Object>() {{
+                    put("status", "In-progress");
+                }},
+                new HashMap<String, Object>() {{
+                    put("status", "Resolved");
+                }}
         ));
         mockResponseBody.setData(mockData);
 
+        // Use reflection to access the private method
+        Method method = ivrCtomServiceDetail.getClass().getDeclaredMethod("getopenComplaintsCount", CtomComplaintResponseBody.class);
+        method.setAccessible(true);
+
         // Invoke the method
-        int openComplaints = ivrCtomServiceDetail.getOpenComplaintsCount(mockResponseBody);
+        int openComplaints = (int) method.invoke(ivrCtomServiceDetail, mockResponseBody);
 
         // Validate response
         assertEquals(2, openComplaints); // Only "Pending assigned" and "In-progress" are open
     }
 
     @Test
-    public void testGetOpenComplaintsCount_NoData() {
+    public void testGetOpenComplaintsCount_NoData() throws Exception {
         // Mock response body with no data
         CtomComplaintResponseBody mockResponseBody = new CtomComplaintResponseBody();
         CtomComplaintData mockData = new CtomComplaintData();
         mockData.setContent(Collections.emptyList());
         mockResponseBody.setData(mockData);
 
+        // Use reflection to access the private method
+        Method method = ivrCtomServiceDetail.getClass().getDeclaredMethod("getopenComplaintsCount", CtomComplaintResponseBody.class);
+        method.setAccessible(true);
+
         // Invoke the method
-        int openComplaints = ivrCtomServiceDetail.getOpenComplaintsCount(mockResponseBody);
+        int openComplaints = (int) method.invoke(ivrCtomServiceDetail, mockResponseBody);
 
         // Validate response
         assertEquals(0, openComplaints);
