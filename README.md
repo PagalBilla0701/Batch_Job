@@ -103,7 +103,7 @@ public class IVRCtomServiceDetailTest {
         mockResponseBody.setData(mockData);
 
         // Invoke the method
-        int openComplaints = ivrCtomServiceDetail.getopenComplaintsCount(mockResponseBody);
+        int openComplaints = ivrCtomServiceDetail.getOpenComplaintsCount(mockResponseBody);
 
         // Validate response
         assertEquals(2, openComplaints); // Only "Pending assigned" and "In-progress" are open
@@ -118,7 +118,7 @@ public class IVRCtomServiceDetailTest {
         mockResponseBody.setData(mockData);
 
         // Invoke the method
-        int openComplaints = ivrCtomServiceDetail.getopenComplaintsCount(mockResponseBody);
+        int openComplaints = ivrCtomServiceDetail.getOpenComplaintsCount(mockResponseBody);
 
         // Validate response
         assertEquals(0, openComplaints);
