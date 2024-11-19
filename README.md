@@ -1,38 +1,27 @@
 @Test
-public void testGenesysInitiateOutboundData_CustomerNotFound() throws Exception {
-    // Mock LoginBean and UserBean
-    LoginBean loginBean = new LoginBean();
-    UserBean userBean = new UserBean();
-    userBean.setCountryCode("65");
-    loginBean.setUserBean(userBean);
+public void testGetCTOMEndPointURL() throws Exception {
+    String xParamKey1 = "testKey1";
+    String xParamKey2 = "testKey2";
+    String countryCode = "US";
+    String idParam = "id123";
 
-    // Test inputs
-    String customerId = "CUST123";
-
+    String[] data = {"", "roleldValue", "secretIdValue", "", "", "oAuthUrlValue", "serviceUrlValue"};
+    
     // Mock dependencies
-    when(callActivityService.getCustomerInfo("65", customerId)).thenReturn(null);
+    Param results = mock(Param.class);
+    when(results.getData()).thenReturn(data);
+    when(paramRepository.getParam(any(Param.class))).thenReturn(results);
 
-    // Call the method under test
-    ModelMap model = new ModelMap();
-    Object response = controller.genesysInitiateOutboundData(loginBean, customerId, model);
+    // Access private method using reflection
+    Method method = IVRCtomResponseEntityService.class.getDeclaredMethod("getCTOMEndPointURL", String.class, String.class, String.class, String.class);
+    method.setAccessible(true);
 
-    // Debug the response
-    System.out.println("Actual Response: " + response);
+    // Act
+    Map<String, String> resultMap = (Map<String, String>) method.invoke(instance, xParamKey1, xParamKey2, countryCode, idParam);
 
-    assertNotNull(response);
-    assertTrue(response instanceof Map);
-
-    @SuppressWarnings("unchecked")
-    Map<String, Object> responseMap = (Map<String, Object>) response;
-
-    // Debug the response map
-    System.out.println("Response Map: " + responseMap);
-    System.out.println("Error Key: " + responseMap.get("error"));
-
-    // Validate error response
-    assertEquals("Customer not found, cannot initiate outbound call", responseMap.get("error"));
-
-    // Verify mock interactions
-    verify(callActivityService).getCustomerInfo("65", customerId);
-    verify(callActivityService).makeResponseWrapper(ArgumentMatchers.anyMap(), ArgumentMatchers.eq(false));
+    // Assert
+    assertEquals("roleldValue", resultMap.get("roleld"));
+    assertEquals("secretIdValue", resultMap.get("secretId"));
+    assertEquals("oAuthUrlValue", resultMap.get("oAuth_url"));
+    assertEquals("serviceUrlValue", resultMap.get("service_url"));
 }
