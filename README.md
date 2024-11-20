@@ -1,15 +1,55 @@
-Your message looks clear and professional. Here's a slightly refined version for further polish:
+@Test
+public void testCallStatusUpdateSTGenesys_SuccessValidation() throws Exception {
+    // Arrange
+    CallActivity call = new CallActivity();
+    call.setOneFa("2+1");
+    call.setTwoFa(null);
+    call.setFailedAuthOne(null);
 
+    Mockito.doNothing().when(callActivityAction).removeFromListOfAuthentications(Mockito.any(), Mockito.eq("SOFT"));
+    Mockito.doNothing().when(callActivityAction).updateCallActivity(Mockito.any());
 
----
+    // Act
+    String result = callActivityController.callStatusUpdateSTGenesys(call, "T");
 
-Hi Sindha,
+    // Assert
+    assertEquals("success", result);
+    Mockito.verify(callActivityAction, Mockito.times(1)).updateCallActivity(call);
+}
 
-I have pushed my completed JUnit code to my feature branch (feature/6201186), which is based on release/1.9.2 for three packages. A few methods are still pending. For the package cems-central-crmxt-services, I am encountering dependency errors. I connected with Selva but couldn't resolve the issue. I will work on resolving it tomorrow and then proceed with the remaining methods.
+@Test
+public void testCallStatusUpdateSTGenesys_FailedValidation() throws Exception {
+    // Arrange
+    CallActivity call = new CallActivity();
+    call.setOneFa(null);
+    call.setTwoFa(null);
+    call.setFailedAuthOne(null);
 
-Regards,
-Kaushik Singh
+    Mockito.doNothing().when(callActivityAction).removeFromListOfAuthentications(Mockito.any(), Mockito.eq("SOFT"));
+    Mockito.doNothing().when(callActivityAction).updateCallActivity(Mockito.any());
 
+    // Act
+    String result = callActivityController.callStatusUpdateSTGenesys(call, "F");
 
----
+    // Assert
+    assertEquals("success", result);
+    assertEquals("F", call.getVerificationStatus());
+    assertEquals("Soft Token", call.getVerificationTypeDesc());
+    Mockito.verify(callActivityAction, Mockito.times(1)).removeFromListOfAuthentications(call, "SOFT");
+    Mockito.verify(callActivityAction, Mockito.times(1)).updateCallActivity(call);
+}
 
+@Test
+public void testCallStatusUpdateSTGenesys_AlreadyCompleted() throws Exception {
+    // Arrange
+    CallActivity call = new CallActivity();
+    call.setOneFa("SOFT");
+    call.setTwoFa(null);
+
+    // Act
+    String result = callActivityController.callStatusUpdateSTGenesys(call, "T");
+
+    // Assert
+    assertEquals("2FA already completed, cannot attempt again", result);
+    Mockito.verify(callActivityAction, Mockito.never()).updateCallActivity(call);
+}
