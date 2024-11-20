@@ -1,73 +1,89 @@
+import org.junit.Before;
 import org.junit.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-public class CallActivityTest {
+public class CallActivityControllerTest {
 
-    @Test
-    public void testSetFailedHistory_WithSuccessAndFailed() {
-        // Arrange
-        String success = "SUCCESS_AUTH";
-        String failed = "FAILED_AUTH1|FAILED_AUTH2";
+    private MockMvc mockMvc;
 
-        // Act
-        String result = new CallActivityController().setFailedHistory(success, failed);
+    @InjectMocks
+    private CallActivityController callActivityController;
 
-        // Assert
-        assertEquals("SUCCESS_AUTH,FAILED_AUTH1|F,FAILED_AUTH2|F", result);
+    @Mock
+    private CallActivityService callActivityService;
+
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+        mockMvc = MockMvcBuilders.standaloneSetup(callActivityController).build();
     }
 
     @Test
-    public void testSetFailedHistory_OnlySuccess() {
+    public void testGetMobileNumberForotp_Success() throws Exception {
         // Arrange
-        String success = "SUCCESS_AUTH";
-        String failed = null;
+        String customerId = "12345";
+        String countryCode = "91";
+        String expectedMobileNumber = "+911234567890";
 
-        // Act
-        String result = new CallActivityController().setFailedHistory(success, failed);
+        // Mocking the service layer
+        Map<String, String> customerInfo = new HashMap<>();
+        customerInfo.put("mobilePhoneNumber", expectedMobileNumber);
+        Mockito.when(callActivityService.getCustomerInfo(countryCode, customerId))
+               .thenReturn(customerInfo);
 
-        // Assert
-        assertEquals("SUCCESS_AUTH", result);
+        // Act & Assert
+        mockMvc.perform(post("/genesys-get-mobileNumber.do")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("customerId", customerId)
+                        .param("countryCode", countryCode))
+               .andExpect(status().isOk())
+               .andExpect(content().string(expectedMobileNumber));
     }
 
     @Test
-    public void testSetFailedHistory_OnlyFailed() {
+    public void testGetMobileNumberForotp_CustomerNotFound() throws Exception {
         // Arrange
-        String success = null;
-        String failed = "FAILED_AUTH1|FAILED_AUTH2";
+        String customerId = "12345";
+        String countryCode = "91";
 
-        // Act
-        String result = new CallActivityController().setFailedHistory(success, failed);
+        // Mocking the service layer to return null
+        Mockito.when(callActivityService.getCustomerInfo(countryCode, customerId))
+               .thenReturn(null);
 
-        // Assert
-        assertEquals("FAILED_AUTH1|F,FAILED_AUTH2|F", result);
+        // Act & Assert
+        mockMvc.perform(post("/genesys-get-mobileNumber.do")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("customerId", customerId)
+                        .param("countryCode", countryCode))
+               .andExpect(status().isOk())
+               .andExpect(content().string(""));
     }
 
     @Test
-    public void testSetFailedHistory_EmptyFailed() {
+    public void testGetMobileNumberForotp_InvalidCustomerId() throws Exception {
         // Arrange
-        String success = "SUCCESS_AUTH";
-        String failed = "";
+        String customerId = "";
+        String countryCode = "91";
 
-        // Act
-        String result = new CallActivityController().setFailedHistory(success, failed);
-
-        // Assert
-        assertEquals("SUCCESS_AUTH", result);
-    }
-
-    @Test
-    public void testSetFailedHistory_EmptySuccessAndFailed() {
-        // Arrange
-        String success = null;
-        String failed = "";
-
-        // Act
-        String result = new CallActivityController().setFailedHistory(success, failed);
-
-        // Assert
-        assertEquals(null, result);
+        // Act & Assert
+        mockMvc.perform(post("/genesys-get-mobileNumber.do")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("customerId", customerId)
+                        .param("countryCode", countryCode))
+               .andExpect(status().isOk())
+               .andExpect(content().string(""));
     }
 }
