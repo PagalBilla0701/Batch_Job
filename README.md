@@ -1,49 +1,86 @@
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
+import org.junit.Before;
 import org.junit.Test;
-import static org.junit.Assert.assertEquals;
+import org.mockito.*;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.ui.ModelMap;
+
+import java.util.HashMap;
 import java.util.Map;
 
-public class TransferPointsTest {
+public class CallActivityControllerTest {
 
-    @Test
-    public void testGetTransferPointsMap() {
-        // Arrange
-        TransferPoints transferPoints = new TransferPoints(); // Assuming your class is named TransferPoints
+    @Mock
+    private CallActivityService callActivityService;
 
-        // Act
-        Map<String, String> result = transferPoints.getTransferPointsMap();
+    @InjectMocks
+    private CallActivityController callActivityController; // Assuming this is where getMobileNumber is called from
 
-        // Assert
-        Map<String, String> expected = new HashMap<String, String>();
-        expected.put("Start", "Start Menu");
-        expected.put("MM", "Main menu");
-        expected.put("ARE", "Account related enquiries");
-        expected.put("PBM", "Phone banking menu");
-        expected.put("BE", "Balance Enquiry");
-        expected.put("CASA", "CASA menu");
-        expected.put("CCPL", "CCPL Menu");
+    @Mock
+    private Logger logger; // If you want to mock logging as well, otherwise remove this mock
 
-        assertEquals("The transfer points map does not match the expected values", expected, result);
+    @Before
+    public void setup() {
+        MockitoAnnotations.openMocks(this); // Initialize mocks
     }
-}
-
-
-
-import org.junit.Test;
-import static org.junit.Assert.assertEquals;
-import java.util.List;
-
-public class TransferPointsTest {
 
     @Test
-    public void testGetTransferPoints() {
+    public void testGetMobileNumber_withValidCustomerIdAndCountryCode() {
         // Arrange
-        TransferPoints transferPoints = new TransferPoints(); // Assuming your class is named TransferPoints
+        String customerId = "12345";
+        String countryCode = "SG";
+        Map<String, String> customerInfo = new HashMap<>();
+        customerInfo.put("mobilePhoneNumber", "123-456-7890");
+        
+        when(callActivityService.getCustomerInfo(countryCode, customerId)).thenReturn(customerInfo);
 
         // Act
-        List<String> result = transferPoints.getTransferPoints();
+        String result = callActivityController.getMobileNumber(customerId, countryCode);
 
         // Assert
-        List<String> expected = Arrays.asList("START", "MM", "ARE", "PBM", "BE", "CASA", "CCPL");
-        assertEquals("The transfer points list does not match the expected values", expected, result);
+        assertEquals("123-456-7890", result);
+    }
+
+    @Test
+    public void testGetMobileNumber_withCustomerNotFound() {
+        // Arrange
+        String customerId = "12345";
+        String countryCode = "SG";
+        
+        when(callActivityService.getCustomerInfo(countryCode, customerId)).thenReturn(null);
+
+        // Act
+        String result = callActivityController.getMobileNumber(customerId, countryCode);
+
+        // Assert
+        assertNull(result);
+    }
+
+    @Test
+    public void testGetMobileNumber_withEmptyCustomerId() {
+        // Arrange
+        String customerId = "";
+        String countryCode = "SG";
+
+        // Act
+        String result = callActivityController.getMobileNumber(customerId, countryCode);
+
+        // Assert
+        assertNull(result);
+    }
+
+    @Test
+    public void testGetMobileNumber_withNullCustomerId() {
+        // Arrange
+        String customerId = null;
+        String countryCode = "SG";
+
+        // Act
+        String result = callActivityController.getMobileNumber(customerId, countryCode);
+
+        // Assert
+        assertNull(result);
     }
 }
