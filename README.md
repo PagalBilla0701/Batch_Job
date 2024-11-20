@@ -1,91 +1,73 @@
-@Test
-public void testCallStatusUpdateSTGenesys_ValidationFailure() throws Exception {
-    // Arrange
-    CallActivity call = new CallActivity();
-    call.setFailedAuthOne(null);
+import org.junit.Test;
 
-    Mockito.doNothing().when(callActivityAction).removeFromListOfAuthentications(Mockito.any(), Mockito.eq("SOFT"));
-    Mockito.doNothing().when(callActivityAction).updateCallActivity(Mockito.any());
+import java.util.List;
 
-    // Act
-    String result = callActivityController.callStatusUpdateSTGenesys(call, "F");
+import static org.junit.Assert.assertEquals;
 
-    // Assert
-    assertEquals("success", result);
-    assertEquals("F", call.getVerificationStatus());
-    assertEquals("Soft Token", call.getVerificationTypeDesc());
-    assertEquals("SOFT", call.getFailedAuthOne());
-    Mockito.verify(callActivityAction, Mockito.times(1)).removeFromListOfAuthentications(call, "SOFT");
-    Mockito.verify(callActivityAction, Mockito.times(1)).updateCallActivity(call);
-}
+public class CallActivityTest {
 
-@Test
-public void testCallStatusUpdateSTGenesys_OneFaPresent() throws Exception {
-    // Arrange
-    CallActivity call = new CallActivity();
-    call.setOneFa("EXISTING");
+    @Test
+    public void testSetFailedHistory_WithSuccessAndFailed() {
+        // Arrange
+        String success = "SUCCESS_AUTH";
+        String failed = "FAILED_AUTH1|FAILED_AUTH2";
 
-    Mockito.doNothing().when(callActivityAction).removeFromListOfAuthentications(Mockito.any(), Mockito.eq("SOFT"));
-    Mockito.doNothing().when(callActivityAction).updateCallActivity(Mockito.any());
+        // Act
+        String result = new CallActivityController().setFailedHistory(success, failed);
 
-    // Act
-    String result = callActivityController.callStatusUpdateSTGenesys(call, "T");
+        // Assert
+        assertEquals("SUCCESS_AUTH,FAILED_AUTH1|F,FAILED_AUTH2|F", result);
+    }
 
-    // Assert
-    assertEquals("success", result);
-    assertEquals("SOFT", call.getOneFa());
-    assertEquals("P", call.getVerificationStatus());
-    assertEquals("Soft Token", call.getVerificationTypeDesc());
-    Mockito.verify(callActivityAction, Mockito.times(1)).removeFromListOfAuthentications(call, "SOFT");
-    Mockito.verify(callActivityAction, Mockito.times(1)).updateCallActivity(call);
-}
+    @Test
+    public void testSetFailedHistory_OnlySuccess() {
+        // Arrange
+        String success = "SUCCESS_AUTH";
+        String failed = null;
 
-@Test
-public void testCallStatusUpdateSTGenesys_TwoFaPresent() throws Exception {
-    // Arrange
-    CallActivity call = new CallActivity();
-    call.setOneFa(null);
-    call.setTwoFa("EXISTING");
+        // Act
+        String result = new CallActivityController().setFailedHistory(success, failed);
 
-    Mockito.doNothing().when(callActivityAction).removeFromListOfAuthentications(Mockito.any(), Mockito.eq("SOFT"));
-    Mockito.doNothing().when(callActivityAction).updateCallActivity(Mockito.any());
+        // Assert
+        assertEquals("SUCCESS_AUTH", result);
+    }
 
-    // Act
-    String result = callActivityController.callStatusUpdateSTGenesys(call, "T");
+    @Test
+    public void testSetFailedHistory_OnlyFailed() {
+        // Arrange
+        String success = null;
+        String failed = "FAILED_AUTH1|FAILED_AUTH2";
 
-    // Assert
-    assertEquals("success", result);
-    assertEquals("ST", call.getTwoFa());
-    Mockito.verify(callActivityAction, Mockito.times(1)).removeFromListOfAuthentications(call, "SOFT");
-    Mockito.verify(callActivityAction, Mockito.times(1)).updateCallActivity(call);
-}
+        // Act
+        String result = new CallActivityController().setFailedHistory(success, failed);
 
-@Test
-public void testCallStatusUpdateSTGenesys_AlreadyCompleted() throws Exception {
-    // Arrange
-    CallActivity call = new CallActivity();
-    call.setOneFa("COMPLETED");
-    call.setTwoFa("COMPLETED");
+        // Assert
+        assertEquals("FAILED_AUTH1|F,FAILED_AUTH2|F", result);
+    }
 
-    // Act
-    String result = callActivityController.callStatusUpdateSTGenesys(call, "T");
+    @Test
+    public void testSetFailedHistory_EmptyFailed() {
+        // Arrange
+        String success = "SUCCESS_AUTH";
+        String failed = "";
 
-    // Assert
-    assertEquals("2FA already completed, cannot attempt again", result);
-    Mockito.verify(callActivityAction, Mockito.never()).removeFromListOfAuthentications(Mockito.any(), Mockito.any());
-    Mockito.verify(callActivityAction, Mockito.never()).updateCallActivity(Mockito.any());
-}
+        // Act
+        String result = new CallActivityController().setFailedHistory(success, failed);
 
-@Test
-public void testCallStatusUpdateSTGenesys_DefaultBehavior() throws Exception {
-    // Arrange
-    CallActivity call = new CallActivity();
+        // Assert
+        assertEquals("SUCCESS_AUTH", result);
+    }
 
-    // Act
-    String result = callActivityController.callStatusUpdateSTGenesys(call, "UNKNOWN");
+    @Test
+    public void testSetFailedHistory_EmptySuccessAndFailed() {
+        // Arrange
+        String success = null;
+        String failed = "";
 
-    // Assert
-    assertEquals("2FA already completed, cannot attempt again", result);
-    Mockito.verify(callActivityAction, Mockito.never()).removeFromListOfAuthentications(Mockito.any(), Mockito.any());
-    Mockito.verify(callActivityAction, Mockito.never()).updateCallActivity(Mockito.any());
+        // Act
+        String result = new CallActivityController().setFailedHistory(success, failed);
+
+        // Assert
+        assertEquals(null, result);
+    }
 }
