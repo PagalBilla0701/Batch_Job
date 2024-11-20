@@ -1,18 +1,49 @@
-@Test
-public void testGetMobileNumberForOtp() {
-    // Arrange
-    String customerId = "12345";
-    String countryCode = "IN";
-    String expectedMobileNumber = "9876543210";
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import java.util.Map;
 
-    CallActivityController mockController = Mockito.mock(CallActivityController.class);
-    CallActivityService mockService = Mockito.mock(CallActivityService.class);
-    Mockito.when(mockService.getCustomerInfo(Mockito.eq(countryCode), Mockito.eq(customerId)))
-           .thenReturn(Collections.singletonMap("mobilePhoneNumber", expectedMobileNumber));
-    
-    // Act
-    String mobileNumber = mockController.getMobileNumberForotp(customerId, countryCode);
-    
-    // Assert
-    assertEquals(expectedMobileNumber, mobileNumber);
+public class TransferPointsTest {
+
+    @Test
+    public void testGetTransferPointsMap() {
+        // Arrange
+        TransferPoints transferPoints = new TransferPoints(); // Assuming your class is named TransferPoints
+
+        // Act
+        Map<String, String> result = transferPoints.getTransferPointsMap();
+
+        // Assert
+        Map<String, String> expected = new HashMap<String, String>();
+        expected.put("Start", "Start Menu");
+        expected.put("MM", "Main menu");
+        expected.put("ARE", "Account related enquiries");
+        expected.put("PBM", "Phone banking menu");
+        expected.put("BE", "Balance Enquiry");
+        expected.put("CASA", "CASA menu");
+        expected.put("CCPL", "CCPL Menu");
+
+        assertEquals("The transfer points map does not match the expected values", expected, result);
+    }
+}
+
+
+
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import java.util.List;
+
+public class TransferPointsTest {
+
+    @Test
+    public void testGetTransferPoints() {
+        // Arrange
+        TransferPoints transferPoints = new TransferPoints(); // Assuming your class is named TransferPoints
+
+        // Act
+        List<String> result = transferPoints.getTransferPoints();
+
+        // Assert
+        List<String> expected = Arrays.asList("START", "MM", "ARE", "PBM", "BE", "CASA", "CCPL");
+        assertEquals("The transfer points list does not match the expected values", expected, result);
+    }
 }
