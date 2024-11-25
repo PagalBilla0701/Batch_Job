@@ -1,86 +1,112 @@
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.*;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.ui.ModelMap;
+public class SRRequestBody {
 
-import java.util.HashMap;
-import java.util.Map;
+    @JsonProperty("sr-status-enquiry")
+    private SRStatusEnquiry srStatusEnquiry;
 
-public class CallActivityControllerTest {
-
-    @Mock
-    private CallActivityService callActivityService;
-
-    @InjectMocks
-    private CallActivityController callActivityController; // Assuming this is where getMobileNumber is called from
-
-    @Mock
-    private Logger logger; // If you want to mock logging as well, otherwise remove this mock
-
-    @Before
-    public void setup() {
-        MockitoAnnotations.openMocks(this); // Initialize mocks
+    public SRStatusEnquiry getSrStatusEnquiry() {
+        return srStatusEnquiry;
     }
 
-    @Test
-    public void testGetMobileNumber_withValidCustomerIdAndCountryCode() {
-        // Arrange
-        String customerId = "12345";
-        String countryCode = "SG";
-        Map<String, String> customerInfo = new HashMap<>();
-        customerInfo.put("mobilePhoneNumber", "123-456-7890");
-        
-        when(callActivityService.getCustomerInfo(countryCode, customerId)).thenReturn(customerInfo);
-
-        // Act
-        String result = callActivityController.getMobileNumber(customerId, countryCode);
-
-        // Assert
-        assertEquals("123-456-7890", result);
+    public void setSrStatusEnquiry(SRStatusEnquiry srStatusEnquiry) {
+        this.srStatusEnquiry = srStatusEnquiry;
     }
 
-    @Test
-    public void testGetMobileNumber_withCustomerNotFound() {
-        // Arrange
-        String customerId = "12345";
-        String countryCode = "SG";
-        
-        when(callActivityService.getCustomerInfo(countryCode, customerId)).thenReturn(null);
+    public static class SRStatusEnquiry {
 
-        // Act
-        String result = callActivityController.getMobileNumber(customerId, countryCode);
+        @JsonProperty("customer-id")
+        private String customerId;
 
-        // Assert
-        assertNull(result);
+        @JsonProperty("sr-creation-date-range")
+        private SRCreationDateRange srCreationDateRange;
+
+        @JsonProperty("page-navigation")
+        private PageNavigation pageNavigation;
+
+        public String getCustomerId() {
+            return customerId;
+        }
+
+        public void setCustomerId(String customerId) {
+            this.customerId = customerId;
+        }
+
+        public SRCreationDateRange getSrCreationDateRange() {
+            return srCreationDateRange;
+        }
+
+        public void setSrCreationDateRange(SRCreationDateRange srCreationDateRange) {
+            this.srCreationDateRange = srCreationDateRange;
+        }
+
+        public PageNavigation getPageNavigation() {
+            return pageNavigation;
+        }
+
+        public void setPageNavigation(PageNavigation pageNavigation) {
+            this.pageNavigation = pageNavigation;
+        }
     }
 
-    @Test
-    public void testGetMobileNumber_withEmptyCustomerId() {
-        // Arrange
-        String customerId = "";
-        String countryCode = "SG";
+    public static class SRCreationDateRange {
 
-        // Act
-        String result = callActivityController.getMobileNumber(customerId, countryCode);
+        @JsonProperty("fromdate")
+        private String fromDate;
 
-        // Assert
-        assertNull(result);
+        @JsonProperty("todate")
+        private String toDate;
+
+        public String getFromDate() {
+            return fromDate;
+        }
+
+        public void setFromDate(String fromDate) {
+            this.fromDate = fromDate;
+        }
+
+        public String getToDate() {
+            return toDate;
+        }
+
+        public void setToDate(String toDate) {
+            this.toDate = toDate;
+        }
     }
 
-    @Test
-    public void testGetMobileNumber_withNullCustomerId() {
-        // Arrange
-        String customerId = null;
-        String countryCode = "SG";
+    public static class PageNavigation {
 
-        // Act
-        String result = callActivityController.getMobileNumber(customerId, countryCode);
+        @JsonProperty("page-navigation-filter")
+        private String pageNavigationFilter;
 
-        // Assert
-        assertNull(result);
+        @JsonProperty("page-no")
+        private String pageNo;
+
+        @JsonProperty("page-size")
+        private String pageSize;
+
+        public String getPageNavigationFilter() {
+            return pageNavigationFilter;
+        }
+
+        public void setPageNavigationFilter(String pageNavigationFilter) {
+            this.pageNavigationFilter = pageNavigationFilter;
+        }
+
+        public String getPageNo() {
+            return pageNo;
+        }
+
+        public void setPageNo(String pageNo) {
+            this.pageNo = pageNo;
+        }
+
+        public String getPageSize() {
+            return pageSize;
+        }
+
+        public void setPageSize(String pageSize) {
+            this.pageSize = pageSize;
+        }
     }
 }
