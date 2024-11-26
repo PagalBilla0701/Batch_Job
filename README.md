@@ -1,173 +1,174 @@
-Thank you for sharing the complete details. Let me help ensure everything aligns correctly and address any gaps or errors.
-
-Key Observations and Adjustments:
-
-1. Typographical Errors:
-
-There are several syntax errors (e.g., getReponseEntityforSR instead of getResponseEntityforSR, | =null? instead of != null ?, etc.).
-
-Missing semicolons (;) and braces ({ and }) need to be corrected.
-
-Annotations like @JsonProperty are improperly formatted (e.g., #JsonProperty and JsonProperty without @).
+To accommodate the additional field pageable in your response and the new fields under it, updates are required in your classes to match the structure of the response. Below are the necessary updates to your code:
 
 
+---
 
-2. Proper Variable and Method Naming:
+1. Add a Pageable Class
 
-Follow consistent Java naming conventions (ivrSRResponseEntityService should not have spaces or underscores).
+This class represents the pageable section of the response.
 
+public class Pageable {
 
+    @JsonProperty("totalElements")
+    private String totalElements;
 
-3. Logical Enhancements:
+    @JsonProperty("offset")
+    private String offset;
 
-The logic for creating HttpHeaders can be refactored into a separate method for reusability.
+    @JsonProperty("pageNumber")
+    private String pageNumber;
 
-Ensure null checks for objects like responseEntity.getBody() to avoid NullPointerException.
+    @JsonProperty("pageSize")
+    private String pageSize;
 
+    @JsonProperty("numberOfElements")
+    private String numberOfElements;
 
+    @JsonProperty("last")
+    private boolean last;
 
-4. Fix the Output Response Logic:
+    @JsonProperty("first")
+    private boolean first;
 
-Ensure that the response structure aligns with your desired format:
-
-{
-  "data": [ ... ],
-  "pageable": {
-    ...
-  }
+    // Getters and Setters
 }
 
-Properly map the ServiceRequest objects from the API response to the final structure.
+
+---
+
+2. Update SRComplaintResponseBody Class
+
+Include the Pageable object.
+
+public class SRComplaintResponseBody {
+
+    private List<ServiceRequest> data;
+
+    @JsonProperty("pageable")
+    private Pageable pageable;
+
+    // Getters and Setters
+}
 
 
+---
+
+3. Update the ServiceRequest Class
+
+Ensure all fields from the data array in the response are mapped correctly. It seems some annotations or fields were malformed in your pasted code. Here's the corrected class:
+
+public class ServiceRequest {
+
+    @JsonProperty("service-request-number")
+    private String serviceRequestNumber;
+
+    @JsonProperty("account-number")
+    private String accountNumber;
+
+    @JsonProperty("service-request-type")
+    private String serviceRequestType;
+
+    @JsonProperty("sr-last-process-group-name")
+    private String srLastProcessGroupName;
+
+    @JsonProperty("sr-last-process-group")
+    private String srLastProcessGroup;
+
+    @JsonProperty("service-request-status")
+    private String serviceRequestStatus;
+
+    @JsonProperty("service-owner-location")
+    private String serviceOwnerLocation;
+
+    @JsonProperty("service-request-created-date")
+    private String serviceRequestCreatedDate;
+
+    @JsonProperty("service-request-due-date")
+    private String serviceRequestDueDate;
+
+    @JsonProperty("service-request-closed-date")
+    private String serviceRequestClosedDate;
+
+    @JsonProperty("service-request-logger-url")
+    private String serviceRequestLoggerUrl;
+
+    @JsonProperty("service-request-handler-url")
+    private String serviceRequestHandlerUrl;
+
+    @JsonProperty("customer-name")
+    private String customerName;
+
+    @JsonProperty("service-request-category")
+    private String serviceRequestCategory;
+
+    @JsonProperty("service-request-esclation")
+    private String serviceRequestEscalation;
+
+    @JsonProperty("sr-current-process-group-name")
+    private String srCurrentProcessGroupName;
+
+    @JsonProperty("sr-current-process-group")
+    private String srCurrentProcessGroup;
+
+    @JsonProperty("service-request-current-handler")
+    private String serviceRequestCurrentHandler;
+
+    @JsonProperty("service-request-tat-standard")
+    private String serviceRequestTatStandard;
+
+    @JsonProperty("service-request-slamet")
+    private String serviceRequestSlamet;
+
+    @JsonProperty("user-id")
+    private String userId;
+
+    @JsonProperty("priority-name")
+    private String priorityName;
+
+    @JsonProperty("sr-call-activity-number")
+    private String srCallActivityNumber;
+
+    // Getters and Setters
+}
 
 
-Corrected and Refactored Code Snippets
+---
 
-IVRServiceRequestDetails Class
+4. Update Logic in IVRServiceRequestDetails
 
-@Service("IVRServiceRequestDetails")
-public class IVRServiceRequestDetails implements CemsSectionService {
+Use the pageable field from the response to incorporate pagination details.
 
-    @Autowired
-    private IVRSRResponseEntityService ivrSRResponseEntityService;
+if (responseEntity != null && HttpStatus.OK.equals(responseEntity.getStatusCode())) {
+    SRComplaintResponseBody srResponseBody = responseEntity.getBody();
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public Object invoke(Map<String, Object> reqParamMap) {
-        String countryCode = reqParamMap.get("countryCode") != null ? reqParamMap.get("countryCode").toString() : null;
+    if (srResponseBody != null) {
+        List<ServiceRequest> serviceRequests = srResponseBody.getData();
+        int openComplaintCount = (serviceRequests != null) ? serviceRequests.size() : 0;
 
-        SRRequestBody srRequestBody = new SRRequestBody();
-        SRStatusEnquiry srStatusEnquiry = new SRStatusEnquiry();
-        srStatusEnquiry.setCustomerId("0150000350F");
+        Pageable pageable = srResponseBody.getPageable();
+        Log.info("Page Details - Page Number: {}, Total Elements: {}",
+                 pageable.getPageNumber(), pageable.getTotalElements());
 
-        // Date range setup
-        SRRequestBody.SRCreationDateRange srDateRange = new SRRequestBody.SRCreationDateRange();
-        srDateRange.setFromDate("23-08-2023");
-        srDateRange.setToDate("23-10-2023");
-        srStatusEnquiry.setSrCreationDateRange(srDateRange);
-
-        // Page navigation setup
-        SRRequestBody.PageNavigation pageNavigation = new SRRequestBody.PageNavigation();
-        pageNavigation.setPageNavigationFilter("Y");
-        pageNavigation.setPageNo("1");
-        pageNavigation.setPageSize("30");
-        srStatusEnquiry.setPageNavigation(pageNavigation);
-
-        srRequestBody.setSrStatusEnquiry(srStatusEnquiry);
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        Map<String, Object> srRequestBodyMap = objectMapper.convertValue(srRequestBody, Map.class);
-
-        IVRSRComplaintHoldingWrapper ivrSRComplaintHoldingWrapper = new IVRSRComplaintHoldingWrapper();
-        ResponseEntity<SRComplaintResponseBody> responseEntity = null;
-
-        try {
-            responseEntity = ivrSRResponseEntityService.getResponseEntityForSR(
-                srRequestBodyMap, "URL12", "ServiceRequest", "summary", countryCode);
-
-            if (responseEntity != null && HttpStatus.OK.equals(responseEntity.getStatusCode())) {
-                SRComplaintResponseBody srResponseBody = responseEntity.getBody();
-
-                if (srResponseBody != null) {
-                    List<ServiceRequest> serviceRequests = srResponseBody.getData();
-                    int openComplaintCount = (serviceRequests != null) ? serviceRequests.size() : 0;
-
-                    ivrSRComplaintHoldingWrapper.setOpenComplaintsCount(openComplaintCount);
-                    ivrSRComplaintHoldingWrapper.setCountryCode(countryCode);
-                    return ivrSRComplaintHoldingWrapper;
-                }
-            }
-        } catch (Exception e) {
-            Log.error("Error while fetching response from CTOM", e);
-        }
+        ivrSRComplaintHoldingWrapper.setOpenComplaintsCount(openComplaintCount);
+        ivrSRComplaintHoldingWrapper.setCountryCode(countryCode);
 
         return ivrSRComplaintHoldingWrapper;
+    } else {
+        Log.error("Error: No valid response from API");
     }
 }
 
-IVRSRResponseEntityService Class
 
-@Service
-@Slf4j
-public class IVRSRResponseEntityService {
+---
 
-    @Autowired
-    private ParamRepository paramRepository;
+Summary
 
-    @Resource
-    private List<HttpMessageConverter<?>> customMessageConverters;
+New Class: Pageable for the pageable section.
 
-    public ResponseEntity<SRComplaintResponseBody> getResponseEntityForSR(
-            Map<String, Object> srRequestBody, String idParam, String xParamKey1, String xParamKey2, String countryCode) throws Exception {
+Modified Classes: SRComplaintResponseBody and ServiceRequest.
 
-        ResponseEntity<SRComplaintResponseBody> responseEntity = null;
+Logic Update: Adjust IVRServiceRequestDetails to log and utilize the new fields from Pageable.
 
-        try {
-            // Build URL and headers
-            Map<String, String> paramData = getSREndPointURL(xParamKey1, xParamKey2, countryCode, idParam);
-            String serviceUrl = paramData.get("service_url");
 
-            HttpHeaders headers = createHeaders();
-            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(srRequestBody, headers);
-
-            RestTemplate restTemplate = new RestTemplate(customMessageConverters);
-            responseEntity = restTemplate.postForEntity(serviceUrl, requestEntity, SRComplaintResponseBody.class);
-
-        } catch (Exception e) {
-            Log.error("Error while fetching response from SR: " + e.getMessage(), e);
-            throw e;
-        }
-
-        return responseEntity;
-    }
-
-    private Map<String, String> getSREndPointURL(String xParamKey1, String xParamKey2, String countryCode, String idParam) {
-        Map<String, String> dataMap = new HashMap<>();
-        Param param = new Param(idParam);
-        param.setCountryCode(countryCode);
-        param.getKeys()[0] = xParamKey1;
-        param.getKeys()[1] = xParamKey2;
-
-        Param results = paramRepository.getParam(param);
-        if (results != null) {
-            dataMap.put("service_url", results.getData()[6]);
-        }
-
-        return dataMap;
-    }
-
-    private HttpHeaders createHeaders() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("X-Market", "MY");
-        headers.set("tracking-id", UUID.randomUUID().toString());
-        headers.set("application-id", "SR-PENDING");
-        headers.set("channel-id", "CEMSSP-CEMSCENTRAL");
-        return headers;
-    }
-}
-
-Let me know if you need additional refinements or explanations.
+These updates ensure your application handles the new response structure correctly. Let me know if you need further assistance!
 
