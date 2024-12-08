@@ -7,123 +7,87 @@ public class IVRServiceRequestDetailsTest {
     @Mock
     private IVRSRResponseEntityService ivrSRResponseEntityService;
 
-    @Test
-    public void testInvoke_SuccessfulResponse() {
-        // Mock Response Entity
-        SRComplaintResponseBody mockResponseBody = new SRComplaintResponseBody();
-        SRComplaintResponseBody.Pageable pageable = new SRComplaintResponseBody.Pageable();
-        pageable.setTotalElements("30");
-        mockResponseBody.setPageable(pageable);
+    private Map<String, Object> reqParamMap;
 
-        ResponseEntity<SRComplaintResponseBody> responseEntity =
+    @Before
+    public void setUp() {
+        reqParamMap = new HashMap<>();
+        reqParamMap.put("customerID", "0150000350F");
+        reqParamMap.put("countryCode", "IN");
+    }
+
+    @Test
+    public void testInvoke_success() {
+        // Mock response
+        SRComplaintResponseBody mockResponseBody = new SRComplaintResponseBody();
+        Pageable mockPageable = new Pageable();
+        mockPageable.setTotalElements("5");
+        mockResponseBody.setPageable(mockPageable);
+
+        ResponseEntity<SRComplaintResponseBody> mockResponseEntity =
                 new ResponseEntity<>(mockResponseBody, HttpStatus.OK);
 
-        // Mock IVRSRResponseEntityService behavior
         when(ivrSRResponseEntityService.getReponseEntityforSR(
                 eq("ServiceRequest"),
                 eq("summary"),
-                eq("US"),
-                any(Map.class),
-                eq("URL12")
-        )).thenReturn(responseEntity);
+                eq("IN"),
+                any(),
+                eq("URL12")))
+            .thenReturn(mockResponseEntity);
 
-        // Prepare input parameters
-        Map<String, Object> reqParamMap = new HashMap<>();
-        reqParamMap.put("customerID", "0150000350F");
-        reqParamMap.put("countryCode", "US");
+        // Execute
+        IVRSRHoldingWrapper result = (IVRSRHoldingWrapper) ivrServiceRequestDetails.invoke(reqParamMap);
 
-        // Call the method under test
-        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
-
-        // Validate results
+        // Verify
         assertNotNull(result);
-        assertTrue(result instanceof IVRSRHoldingWrapper);
+        assertEquals(5, result.getOpenSRCount());
+        assertEquals("IN", result.getCountryCode());
 
-        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
-        assertEquals("US", wrapper.getCountryCode());
-        assertEquals(30, wrapper.getOpenSRCount());
-
-        // Verify interactions with mocks
-        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
-                eq("ServiceRequest"),
-                eq("summary"),
-                eq("US"),
-                any(Map.class),
-                eq("URL12")
-        );
+        verify(ivrSRResponseEntityService, times(1))
+            .getReponseEntityforSR(eq("ServiceRequest"), eq("summary"), eq("IN"), any(), eq("URL12"));
     }
 
     @Test
-    public void testInvoke_NoResponse() {
-        // Mock null Response Entity
+    public void testInvoke_noResponse() {
         when(ivrSRResponseEntityService.getReponseEntityforSR(
                 eq("ServiceRequest"),
                 eq("summary"),
-                eq("US"),
-                any(Map.class),
-                eq("URL12")
-        )).thenReturn(null);
+                eq("IN"),
+                any(),
+                eq("URL12")))
+            .thenReturn(null);
 
-        // Prepare input parameters
-        Map<String, Object> reqParamMap = new HashMap<>();
-        reqParamMap.put("customerID", "0150000350F");
-        reqParamMap.put("countryCode", "US");
+        // Execute
+        IVRSRHoldingWrapper result = (IVRSRHoldingWrapper) ivrServiceRequestDetails.invoke(reqParamMap);
 
-        // Call the method under test
-        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
-
-        // Validate results
+        // Verify
         assertNotNull(result);
-        assertTrue(result instanceof IVRSRHoldingWrapper);
+        assertEquals(0, result.getOpenSRCount());
+        assertEquals("IN", result.getCountryCode());
 
-        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
-        assertEquals("US", wrapper.getCountryCode());
-        assertEquals(0, wrapper.getOpenSRCount());
-
-        // Verify interactions with mocks
-        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
-                eq("ServiceRequest"),
-                eq("summary"),
-                eq("US"),
-                any(Map.class),
-                eq("URL12")
-        );
+        verify(ivrSRResponseEntityService, times(1))
+            .getReponseEntityforSR(eq("ServiceRequest"), eq("summary"), eq("IN"), any(), eq("URL12"));
     }
 
     @Test
-    public void testInvoke_ExceptionThrown() {
-        // Mock exception scenario
+    public void testInvoke_exceptionHandling() {
         when(ivrSRResponseEntityService.getReponseEntityforSR(
                 eq("ServiceRequest"),
                 eq("summary"),
-                eq("US"),
-                any(Map.class),
-                eq("URL12")
-        )).thenThrow(new RuntimeException("Service unavailable"));
+                eq("IN"),
+                any(),
+                eq("URL12")))
+            .thenThrow(new RuntimeException("Test Exception"));
 
-        // Prepare input parameters
-        Map<String, Object> reqParamMap = new HashMap<>();
-        reqParamMap.put("customerID", "0150000350F");
-        reqParamMap.put("countryCode", "US");
+        // Execute
+        IVRSRHoldingWrapper result = (IVRSRHoldingWrapper) ivrServiceRequestDetails.invoke(reqParamMap);
 
-        // Call the method under test
-        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
-
-        // Validate results
+        // Verify
         assertNotNull(result);
-        assertTrue(result instanceof IVRSRHoldingWrapper);
+        assertEquals(0, result.getOpenSRCount());
+        assertEquals("IN", result.getCountryCode());
 
-        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
-        assertEquals("US", wrapper.getCountryCode());
-        assertEquals(0, wrapper.getOpenSRCount());
-
-        // Verify interactions with mocks
-        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
-                eq("ServiceRequest"),
-                eq("summary"),
-                eq("US"),
-                any(Map.class),
-                eq("URL12")
-        );
+        verify(ivrSRResponseEntityService, times(1))
+            .getReponseEntityforSR(eq("ServiceRequest"), eq("summary"), eq("IN"), any(), eq("URL12"));
     }
 }
