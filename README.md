@@ -1,47 +1,142 @@
-@Override
-public Object invoke(Map<String, Object> reqParamMap) {
-    // Extract country code if present
-    String countryCode = reqParamMap.get("countryCode") != null ? reqParamMap.get("countryCode").toString() : null;
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
 
-    // Create request body and status enquiry objects
-    SRRequestBody srRequestBody = new SRRequestBody();
-    SRStatusEnquiry srStatusEnquiry = new SRStatusEnquiry();
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-    // Set customer ID
-    String customerId = (String) reqParamMap.get("customer-id");
-    srStatusEnquiry.setCustomerId(customerId);
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 
-    // Set date range dynamically
-    Map<String, Object> srCreationDateRangeMap = (Map<String, Object>) reqParamMap.get("sr-creation-date-range");
-    if (srCreationDateRangeMap != null) {
-        String fromDate = (String) srCreationDateRangeMap.get("fromdate");
-        String toDate = (String) srCreationDateRangeMap.get("todate");
+@RunWith(MockitoJUnitRunner.class)
+public class IVRServiceRequestDetailsTest {
 
-        SRRequestBody.SRCreationDateRange srDateRange = new SRRequestBody.SRCreationDateRange();
-        srDateRange.setFromDate(fromDate);
-        srDateRange.setToDate(toDate);
+    @InjectMocks
+    private IVRServiceRequestDetails ivrServiceRequestDetails;
 
-        srStatusEnquiry.setSrCreationDateRange(srDateRange);
+    @Mock
+    private IVRSRResponseEntityService ivrSRResponseEntityService;
+
+    private Map<String, Object> reqParamMap;
+    private SRComplaintResponseBody mockResponseBody;
+
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+
+        reqParamMap = new HashMap<>();
+        reqParamMap.put("customerID", "0150000350F");
+        reqParamMap.put("countryCode", "US");
+
+        mockResponseBody = new SRComplaintResponseBody();
+        SRComplaintResponseBody.Pageable pageable = new SRComplaintResponseBody.Pageable();
+        pageable.setTotalElements("30");
+        mockResponseBody.setPageable(pageable);
     }
 
-    // Set page navigation dynamically
-    Map<String, Object> pageNavigationMap = (Map<String, Object>) reqParamMap.get("page-navigation");
-    if (pageNavigationMap != null) {
-        String pageNavigationFilter = (String) pageNavigationMap.get("page-navigation-filter");
-        String pageNo = (String) pageNavigationMap.get("page-no");
-        String pageSize = (String) pageNavigationMap.get("page-size");
+    @Test
+    public void testInvoke_SuccessfulResponse() throws Exception {
+        // Mock the response entity
+        ResponseEntity<SRComplaintResponseBody> responseEntity = new ResponseEntity<>(mockResponseBody, HttpStatus.OK);
+        when(ivrSRResponseEntityService.getReponseEntityforSR(
+                eq("ServiceRequest"),
+                eq("summary"),
+                eq("US"),
+                any(Map.class),
+                eq("URL12")
+        )).thenReturn(responseEntity);
 
-        SRRequestBody.PageNavigation pageNavigation = new SRRequestBody.PageNavigation();
-        pageNavigation.setPageNavigationFilter(pageNavigationFilter);
-        pageNavigation.setPageNo(pageNo);
-        pageNavigation.setPageSize(pageSize);
+        // Call the method under test
+        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
 
-        srStatusEnquiry.setPageNavigation(pageNavigation);
+        // Verify the result
+        assertNotNull(result);
+        assertTrue(result instanceof IVRSRHoldingWrapper);
+
+        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
+        assertEquals("US", wrapper.getCountryCode());
+        assertEquals(30, wrapper.getOpenSRCount());
+
+        // Verify interactions with mocks
+        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
+                eq("ServiceRequest"),
+                eq("summary"),
+                eq("US"),
+                any(Map.class),
+                eq("URL12")
+        );
     }
 
-    // Add SRStatusEnquiry to the request body
-    srRequestBody.setSrStatusEnquiry(srStatusEnquiry);
+    @Test
+    public void testInvoke_NoResponse() throws Exception {
+        // Mock no response from the service
+        when(ivrSRResponseEntityService.getReponseEntityforSR(
+                eq("ServiceRequest"),
+                eq("summary"),
+                eq("US"),
+                any(Map.class),
+                eq("URL12")
+        )).thenReturn(null);
 
-    // Return the populated request body object
-    return srRequestBody;
+        // Call the method under test
+        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
+
+        // Verify the result
+        assertNotNull(result);
+        assertTrue(result instanceof IVRSRHoldingWrapper);
+
+        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
+        assertEquals("US", wrapper.getCountryCode());
+        assertEquals(0, wrapper.getOpenSRCount());
+
+        // Verify interactions with mocks
+        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
+                eq("ServiceRequest"),
+                eq("summary"),
+                eq("US"),
+                any(Map.class),
+                eq("URL12")
+        );
+    }
+
+    @Test
+    public void testInvoke_ExceptionHandling() throws Exception {
+        // Mock an exception from the service
+        when(ivrSRResponseEntityService.getReponseEntityforSR(
+                eq("ServiceRequest"),
+                eq("summary"),
+                eq("US"),
+                any(Map.class),
+                eq("URL12")
+        )).thenThrow(new RuntimeException("Test exception"));
+
+        // Call the method under test
+        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
+
+        // Verify the result
+        assertNotNull(result);
+        assertTrue(result instanceof IVRSRHoldingWrapper);
+
+        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
+        assertEquals("US", wrapper.getCountryCode());
+        assertEquals(0, wrapper.getOpenSRCount());
+
+        // Verify interactions with mocks
+        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
+                eq("ServiceRequest"),
+                eq("summary"),
+                eq("US"),
+                any(Map.class),
+                eq("URL12")
+        );
+    }
 }
