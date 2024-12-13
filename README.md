@@ -1,4 +1,15 @@
-@RunWith(MockitoJUnitRunner.class)
+import static org.mockito.Mockito.*;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+@RunWith(PowerMockRunner.class)
 public class IVRSRResponseEntityServiceTest {
 
     @InjectMocks
@@ -22,7 +33,7 @@ public class IVRSRResponseEntityServiceTest {
         mockConverters.add(new MappingJackson2HttpMessageConverter());
         mockConverters.add(new StringHttpMessageConverter());
 
-        Mockito.when(customMessageConverters).thenReturn(mockConverters);
+        when(customMessageConverters).thenReturn(mockConverters);
     }
 
     @Test
@@ -57,23 +68,21 @@ public class IVRSRResponseEntityServiceTest {
         String xParamKey2 = "summary";
         String countryCodeForParam = "MY";
 
-        // Mocking getSREndPointURL behavior
-        Param mockParam = new Param(idParam);
-        mockParam.setCountryCode(countryCodeForParam);
-        mockParam.setKeys(new String[]{xParamKey1, xParamKey2});
-        Mockito.when(paramRepository.getParam(Mockito.any(Param.class))).thenReturn(mockParam);
-
+        // Mocking private method using PowerMockito
+        PowerMockito.spy(ivrService); // Allow spied object to invoke real methods
         Map<String, String> paramData = new HashMap<>();
         paramData.put("service_url", "http://mock-service-url.com");
-        Mockito.doReturn(paramData).when(ivrService).getSREndPointURL(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        
+        // Use PowerMockito to mock the private method
+        PowerMockito.doReturn(paramData).when(ivrService, "getSREndPointURL", anyString(), anyString(), anyString(), anyString());
 
         // Mocking RestTemplate response
         SRComplaintResponseBody mockResponseBody = new SRComplaintResponseBody();
         ResponseEntity<SRComplaintResponseBody> mockResponseEntity = new ResponseEntity<>(mockResponseBody, HttpStatus.OK);
-        Mockito.when(restTemplate.postForEntity(
-                Mockito.anyString(),
-                Mockito.any(HttpEntity.class),
-                Mockito.eq(SRComplaintResponseBody.class)
+        when(restTemplate.postForEntity(
+                anyString(),
+                any(HttpEntity.class),
+                eq(SRComplaintResponseBody.class)
         )).thenReturn(mockResponseEntity);
 
         // Act
@@ -91,11 +100,11 @@ public class IVRSRResponseEntityServiceTest {
         assertNotNull("Response body should not be null", response.getBody());
 
         // Verify interactions
-        Mockito.verify(paramRepository, Mockito.times(1)).getParam(Mockito.any(Param.class));
-        Mockito.verify(restTemplate, Mockito.times(1)).postForEntity(
-                Mockito.anyString(),
-                Mockito.any(HttpEntity.class),
-                Mockito.eq(SRComplaintResponseBody.class)
+        verify(paramRepository, times(1)).getParam(any(Param.class));
+        verify(restTemplate, times(1)).postForEntity(
+                anyString(),
+                any(HttpEntity.class),
+                eq(SRComplaintResponseBody.class)
         );
     }
 }
