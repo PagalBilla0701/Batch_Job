@@ -1,97 +1,84 @@
-@RunWith(MockitoJUnitRunner.class)
-public class IVRSRResponseEntityServiceTest {
+import org.springframework.test.util.ReflectionTestUtils;
 
-    @InjectMocks
-    private IVRSRResponseEntityService ivrService;
+@Test
+public void testGetResponseEntityForSR_Success() throws Exception {
+    // Arrange
+    ObjectMapper objectMapper = new ObjectMapper();
+    SRRequestBody srRequestBody = new SRRequestBody();
+    SRStatusEnquiry srStatusEnquiry = new SRStatusEnquiry();
 
-    @Mock
-    private ParamRepository paramRepository;
+    srStatusEnquiry.setCustomerId("0150000350F");
 
-    @Mock
-    private RestTemplate restTemplate;
+    LocalDate currentDate = LocalDate.now();
+    LocalDate previousDate = currentDate.minusDays(180);
 
-    @Spy
-    private IVRSRResponseEntityService ivrServiceSpy;
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
-    @Before
-    public void setup() {
-        MockitoAnnotations.openMocks(this);
-    }
+    SRRequestBody.SRCreationDateRange srDateRange = new SRRequestBody.SRCreationDateRange();
+    srDateRange.setFromDate(previousDate.format(formatter));
+    srDateRange.setToDate(currentDate.format(formatter));
 
-    @Test
-    public void testGetResponseEntityForSR_Success() throws Exception {
-        // Arrange
-        ObjectMapper objectMapper = new ObjectMapper();
-        SRRequestBody srRequestBody = new SRRequestBody();
-        SRStatusEnquiry srStatusEnquiry = new SRStatusEnquiry();
+    srStatusEnquiry.setSrCreationDateRange(srDateRange);
 
-        srStatusEnquiry.setCustomerId("0150000350F");
+    SRRequestBody.PageNavigation pageNavigation = new SRRequestBody.PageNavigation();
+    pageNavigation.setPageNavigationFilter("Y");
+    pageNavigation.setPageNo("1");
+    pageNavigation.setPageSize("1");
 
-        LocalDate currentDate = LocalDate.now();
-        LocalDate previousDate = currentDate.minusDays(180);
+    srStatusEnquiry.setPageNavigation(pageNavigation);
+    srRequestBody.setSrStatusEnquiry(srStatusEnquiry);
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    Map<String, Object> srRequestBodyMap = objectMapper.convertValue(srRequestBody, Map.class);
 
-        SRRequestBody.SRCreationDateRange srDateRange = new SRRequestBody.SRCreationDateRange();
-        srDateRange.setFromDate(previousDate.format(formatter));
-        srDateRange.setToDate(currentDate.format(formatter));
+    String idParam = "URL12";
+    String xParamKey1 = "ServiceRequest";
+    String xParamKey2 = "summary";
+    String countryCodeForParam = "MY";
 
-        srStatusEnquiry.setSrCreationDateRange(srDateRange);
+    // Mocking getParam behavior
+    Param mockParam = new Param(idParam);
+    mockParam.setCountryCode(countryCodeForParam);
+    mockParam.setKeys(new String[] { xParamKey1, xParamKey2 });
 
-        SRRequestBody.PageNavigation pageNavigation = new SRRequestBody.PageNavigation();
-        pageNavigation.setPageNavigationFilter("Y");
-        pageNavigation.setPageNo("1");
-        pageNavigation.setPageSize("1");
+    Mockito.when(paramRepository.getParam(Mockito.any(Param.class))).thenReturn(mockParam);
 
-        srStatusEnquiry.setPageNavigation(pageNavigation);
-        srRequestBody.setSrStatusEnquiry(srStatusEnquiry);
+    // Mocking RestTemplate response
+    SRComplaintResponseBody mockResponseBody = new SRComplaintResponseBody();
+    ResponseEntity<SRComplaintResponseBody> mockResponseEntity = new ResponseEntity<>(mockResponseBody, HttpStatus.OK);
 
-        Map<String, Object> srRequestBodyMap = objectMapper.convertValue(srRequestBody, Map.class);
+    Mockito.when(restTemplate.postForEntity(
+            Mockito.anyString(),
+            Mockito.any(HttpEntity.class),
+            Mockito.eq(SRComplaintResponseBody.class)))
+            .thenReturn(mockResponseEntity);
 
-        String idParam = "URL12";
-        String xParamKey1 = "ServiceRequest";
-        String xParamKey2 = "summary";
-        String countryCodeForParam = "MY";
+    // Act
+    // Use Reflection to invoke the private method
+    Map<String, String> paramData = new HashMap<>();
+    paramData.put("service_url", "http://mock-service-url.com");
 
-        // Mocking getParam behavior
-        Param mockParam = new Param(idParam);
-        mockParam.setCountryCode(countryCodeForParam);
-        mockParam.setKeys(new String[] { xParamKey1, xParamKey2 });
+    ReflectionTestUtils.setField(ivrService, "restTemplate", restTemplate);
+    ReflectionTestUtils.invokeMethod(
+            ivrService,
+            "getSREndPointURL",
+            idParam,
+            xParamKey1,
+            xParamKey2,
+            countryCodeForParam
+    );
 
-        Mockito.when(paramRepository.getParam(Mockito.any(Param.class))).thenReturn(mockParam);
+    ResponseEntity<SRComplaintResponseBody> response = ivrService.getReponseEntityforSR(
+            srRequestBodyMap, idParam, xParamKey1, xParamKey2, countryCodeForParam);
 
-        // Mocking getSREndPointURL behavior
-        Map<String, String> paramData = new HashMap<>();
-        paramData.put("service_url", "http://mock-service-url.com");
+    // Assert
+    assertNotNull("Response should not be null", response);
+    assertEquals("Status code should be 200 OK", HttpStatus.OK, response.getStatusCode());
+    assertNotNull("Response body should not be null", response.getBody());
 
-        Mockito.doReturn(paramData)
-                .when(ivrServiceSpy)
-                .getSREndPointURL(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
-
-        // Mocking RestTemplate response
-        SRComplaintResponseBody mockResponseBody = new SRComplaintResponseBody();
-        ResponseEntity<SRComplaintResponseBody> mockResponseEntity = new ResponseEntity<>(mockResponseBody, HttpStatus.OK);
-
-        Mockito.when(restTemplate.postForEntity(
-                Mockito.anyString(),
-                Mockito.any(HttpEntity.class),
-                Mockito.eq(SRComplaintResponseBody.class)))
-                .thenReturn(mockResponseEntity);
-
-        // Act
-        ResponseEntity<SRComplaintResponseBody> response = ivrServiceSpy.getReponseEntityforSR(
-                srRequestBodyMap, idParam, xParamKey1, xParamKey2, countryCodeForParam);
-
-        // Assert
-        assertNotNull("Response should not be null", response);
-        assertEquals("Status code should be 200 OK", HttpStatus.OK, response.getStatusCode());
-        assertNotNull("Response body should not be null", response.getBody());
-
-        // Verify interactions
-        Mockito.verify(paramRepository, Mockito.times(1)).getParam(Mockito.any(Param.class));
-        Mockito.verify(restTemplate, Mockito.times(1)).postForEntity(
-                Mockito.anyString(),
-                Mockito.any(HttpEntity.class),
-                Mockito.eq(SRComplaintResponseBody.class));
-    }
+    // Verify interactions
+    Mockito.verify(paramRepository, Mockito.times(1)).getParam(Mockito.any(Param.class));
+    Mockito.verify(restTemplate, Mockito.times(1)).postForEntity(
+            Mockito.anyString(),
+            Mockito.any(HttpEntity.class),
+            Mockito.eq(SRComplaintResponseBody.class));
 }
