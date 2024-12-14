@@ -1,72 +1,125 @@
+import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
-import java.lang.reflect.Method;
-import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scb.cems.data.assembler.model.IVRSRHoldingWrapper;
+import com.scb.cems.data.assembler.model.SRComplaintResponseBody;
+import com.scb.cems.data.assembler.service.internal.IVRServiceRequestDetails;
+import com.scb.cems.data.assembler.service.internal.IVRSRResponseEntityService;
 
-import com.scb.core.codeparam.data.model.Param;
-import com.scb.core.codeparam.repository.ParamRepository;
-
-public class IVRSRResponseEntityServiceTest {
+@RunWith(MockitoJUnitRunner.class)
+public class IVRServiceRequestDetailsTest {
 
     @InjectMocks
-    private IVRSRResponseEntityService ivrSRResponseEntityService;
+    private IVRServiceRequestDetails ivrServiceRequestDetails;
 
     @Mock
-    private ParamRepository paramRepository;
+    private IVRSRResponseEntityService ivrSRResponseEntityService;
+
+    private Map<String, Object> reqParamMap;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.openMocks(this);
+        MockitoAnnotations.initMocks(this);
+        reqParamMap = new HashMap<>();
+        reqParamMap.put("customerID", "0150000350F");
+        reqParamMap.put("countryCode", "MY");
     }
 
     @Test
-    public void testGetSREndPointURL_usingReflection() throws Exception {
+    public void testInvoke_SuccessfulResponse() throws Exception {
         // Arrange
-        String xParamKey1 = "key1";
-        String xParamKey2 = "key2";
-        String countryCodeForParam = "MY";
-        String idParam = "ID001";
+        SRComplaintResponseBody srComplaintResponseBody = new SRComplaintResponseBody();
+        srComplaintResponseBody.setPageable(new SRComplaintResponseBody.Pageable(10L));
 
-        Param mockParam = new Param(idParam);
-        mockParam.setCountryCode(countryCodeForParam);
-        mockParam.getKeys()[0] = xParamKey1;
-        mockParam.getKeys()[1] = xParamKey2;
-        String mockUrl = "https://example.com/api";
-        mockParam.setData(new String[] {null, null, null, null, null, null, mockUrl});
+        ResponseEntity<SRComplaintResponseBody> mockResponseEntity =
+                new ResponseEntity<>(srComplaintResponseBody, HttpStatus.OK);
 
-        when(paramRepository.getParam(mockParam)).thenReturn(mockParam);
-
-        // Use Reflection to access the private method
-        Method method = IVRSRResponseEntityService.class.getDeclaredMethod(
-            "getSREndPointURL",
-            String.class,
-            String.class,
-            String.class,
-            String.class
-        );
-        method.setAccessible(true);
+        when(ivrSRResponseEntityService.getReponseEntityforSR(
+                any(Map.class),
+                eq("URL12"),
+                eq("ServiceRequest"),
+                eq("summary"),
+                eq("MY")
+        )).thenReturn(mockResponseEntity);
 
         // Act
-        @SuppressWarnings("unchecked")
-        Map<String, String> result = (Map<String, String>) method.invoke(
-            ivrSRResponseEntityService,
-            xParamKey1,
-            xParamKey2,
-            countryCodeForParam,
-            idParam
-        );
+        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
 
         // Assert
-        assertNotNull("Result should not be null", result);
-        assertEquals("Service URL should match", mockUrl, result.get("service_url"));
+        assertNotNull(result);
+        assertTrue(result instanceof IVRSRHoldingWrapper);
+        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
+        assertEquals(10, wrapper.getOpenSRCount());
+        assertEquals("MY", wrapper.getCountryCode());
 
-        // Verify interactions
-        verify(paramRepository, times(1)).getParam(any(Param.class));
+        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
+                any(Map.class), eq("URL12"), eq("ServiceRequest"), eq("summary"), eq("MY")
+        );
+    }
+
+    @Test
+    public void testInvoke_NoResponse() throws Exception {
+        // Arrange
+        when(ivrSRResponseEntityService.getReponseEntityforSR(
+                any(Map.class),
+                eq("URL12"),
+                eq("ServiceRequest"),
+                eq("summary"),
+                eq("MY")
+        )).thenReturn(null);
+
+        // Act
+        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result instanceof IVRSRHoldingWrapper);
+        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
+        assertEquals(0, wrapper.getOpenSRCount());
+        assertEquals("MY", wrapper.getCountryCode());
+
+        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
+                any(Map.class), eq("URL12"), eq("ServiceRequest"), eq("summary"), eq("MY")
+        );
+    }
+
+    @Test
+    public void testInvoke_ExceptionThrown() throws Exception {
+        // Arrange
+        when(ivrSRResponseEntityService.getReponseEntityforSR(
+                any(Map.class),
+                eq("URL12"),
+                eq("ServiceRequest"),
+                eq("summary"),
+                eq("MY")
+        )).thenThrow(new RuntimeException("Service error"));
+
+        // Act
+        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
+
+        // Assert
+        assertNotNull(result);
+        assertTrue(result instanceof IVRSRHoldingWrapper);
+        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
+        assertEquals(0, wrapper.getOpenSRCount());
+        assertEquals("MY", wrapper.getCountryCode());
+
+        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
+                any(Map.class), eq("URL12"), eq("ServiceRequest"), eq("summary"), eq("MY")
+        );
     }
 }
