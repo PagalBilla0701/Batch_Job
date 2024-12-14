@@ -1,29 +1,24 @@
-import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
+import java.lang.reflect.Method;
 import java.util.Map;
 
-@RunWith(MockitoJUnitRunner.class)
-public class IVRServiceRequestDetailsTest {
+import com.scb.core.codeparam.data.model.Param;
+import com.scb.core.codeparam.repository.ParamRepository;
+
+public class IVRSRResponseEntityServiceTest {
 
     @InjectMocks
-    private IVRServiceRequestDetails ivrServiceRequestDetails;
+    private IVRSRResponseEntityService ivrSRResponseEntityService;
 
     @Mock
-    private IVRSRResponseEntityService ivrSRResponseEntityService;
+    private ParamRepository paramRepository;
 
     @Before
     public void setUp() {
@@ -31,102 +26,47 @@ public class IVRServiceRequestDetailsTest {
     }
 
     @Test
-    public void testInvoke_withValidResponse_shouldReturnWrapperWithData() {
+    public void testGetSREndPointURL_usingReflection() throws Exception {
         // Arrange
-        String customerId = "0150000350F";
-        String countryCode = "US";
+        String xParamKey1 = "key1";
+        String xParamKey2 = "key2";
+        String countryCodeForParam = "MY";
+        String idParam = "ID001";
 
-        Map<String, Object> reqParamMap = new HashMap<>();
-        reqParamMap.put("customerID", customerId);
-        reqParamMap.put("countryCode", countryCode);
+        Param mockParam = new Param(idParam);
+        mockParam.setCountryCode(countryCodeForParam);
+        mockParam.getKeys()[0] = xParamKey1;
+        mockParam.getKeys()[1] = xParamKey2;
+        String mockUrl = "https://example.com/api";
+        mockParam.setData(new String[] {null, null, null, null, null, null, mockUrl});
 
-        // Create mock response
-        SRComplaintResponseBody mockResponseBody = new SRComplaintResponseBody();
-        Pageable pageable = new Pageable();
-        pageable.setTotalElements(5); // Total open service requests
-        mockResponseBody.setPageable(pageable);
+        when(paramRepository.getParam(mockParam)).thenReturn(mockParam);
 
-        ResponseEntity<SRComplaintResponseBody> mockResponseEntity = new ResponseEntity<>(mockResponseBody, HttpStatus.OK);
-        when(ivrSRResponseEntityService.getReponseEntityforSR(eq("ServiceRequest"), eq("summary"), eq(countryCode), any(), eq("URL12")))
-                .thenReturn(mockResponseEntity);
+        // Use Reflection to access the private method
+        Method method = IVRSRResponseEntityService.class.getDeclaredMethod(
+            "getSREndPointURL",
+            String.class,
+            String.class,
+            String.class,
+            String.class
+        );
+        method.setAccessible(true);
 
         // Act
-        IVRSRHoldingWrapper result = (IVRSRHoldingWrapper) ivrServiceRequestDetails.invoke(reqParamMap);
+        @SuppressWarnings("unchecked")
+        Map<String, String> result = (Map<String, String>) method.invoke(
+            ivrSRResponseEntityService,
+            xParamKey1,
+            xParamKey2,
+            countryCodeForParam,
+            idParam
+        );
 
         // Assert
-        assertNotNull(result);
-        assertEquals(countryCode, result.getCountryCode());
-        assertEquals(5, result.getOpenSRCount());
+        assertNotNull("Result should not be null", result);
+        assertEquals("Service URL should match", mockUrl, result.get("service_url"));
 
-        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(anyString(), anyString(), eq(countryCode), any(), anyString());
-    }
-
-    @Test
-    public void testInvoke_withNoResponse_shouldReturnWrapperWithZeroCount() {
-        // Arrange
-        String customerId = "0150000350F";
-        String countryCode = "US";
-
-        Map<String, Object> reqParamMap = new HashMap<>();
-        reqParamMap.put("customerID", customerId);
-        reqParamMap.put("countryCode", countryCode);
-
-        // Mock null response
-        when(ivrSRResponseEntityService.getReponseEntityforSR(eq("ServiceRequest"), eq("summary"), eq(countryCode), any(), eq("URL12")))
-                .thenReturn(null);
-
-        // Act
-        IVRSRHoldingWrapper result = (IVRSRHoldingWrapper) ivrServiceRequestDetails.invoke(reqParamMap);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(countryCode, result.getCountryCode());
-        assertEquals(0, result.getOpenSRCount());
-
-        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(anyString(), anyString(), eq(countryCode), any(), anyString());
-    }
-
-    @Test
-    public void testInvoke_withException_shouldHandleGracefully() {
-        // Arrange
-        String customerId = "0150000350F";
-        String countryCode = "US";
-
-        Map<String, Object> reqParamMap = new HashMap<>();
-        reqParamMap.put("customerID", customerId);
-        reqParamMap.put("countryCode", countryCode);
-
-        // Mock exception
-        when(ivrSRResponseEntityService.getReponseEntityforSR(eq("ServiceRequest"), eq("summary"), eq(countryCode), any(), eq("URL12")))
-                .thenThrow(new RuntimeException("Test exception"));
-
-        // Act
-        IVRSRHoldingWrapper result = (IVRSRHoldingWrapper) ivrServiceRequestDetails.invoke(reqParamMap);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(countryCode, result.getCountryCode());
-        assertEquals(0, result.getOpenSRCount());
-
-        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(anyString(), anyString(), eq(countryCode), any(), anyString());
-    }
-
-    @Test
-    public void testDateRange_shouldSetCorrectDates() {
-        // Arrange
-        LocalDate currentDate = LocalDate.now();
-        LocalDate previousDate = currentDate.minusDays(180);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-
-        String expectedToDate = currentDate.format(formatter);
-        String expectedFromDate = previousDate.format(formatter);
-
-        // Act
-        String actualToDate = currentDate.format(formatter);
-        String actualFromDate = previousDate.format(formatter);
-
-        // Assert
-        assertEquals(expectedToDate, actualToDate);
-        assertEquals(expectedFromDate, actualFromDate);
+        // Verify interactions
+        verify(paramRepository, times(1)).getParam(any(Param.class));
     }
 }
