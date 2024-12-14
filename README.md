@@ -1,125 +1,76 @@
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+To commit and push your current changes to the branch origin/feature/STORY-6503163, follow these steps:
 
-import java.util.HashMap;
-import java.util.Map;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+---
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.scb.cems.data.assembler.model.IVRSRHoldingWrapper;
-import com.scb.cems.data.assembler.model.SRComplaintResponseBody;
-import com.scb.cems.data.assembler.service.internal.IVRServiceRequestDetails;
-import com.scb.cems.data.assembler.service.internal.IVRSRResponseEntityService;
+Step 1: Verify the Target Branch Exists
 
-@RunWith(MockitoJUnitRunner.class)
-public class IVRServiceRequestDetailsTest {
+Check if the branch feature/STORY-6503163 exists locally or on the remote:
 
-    @InjectMocks
-    private IVRServiceRequestDetails ivrServiceRequestDetails;
+git branch -a
 
-    @Mock
-    private IVRSRResponseEntityService ivrSRResponseEntityService;
+If you see remotes/origin/feature/STORY-6503163 in the list, the branch exists on the remote.
 
-    private Map<String, Object> reqParamMap;
 
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        reqParamMap = new HashMap<>();
-        reqParamMap.put("customerID", "0150000350F");
-        reqParamMap.put("countryCode", "MY");
-    }
+---
 
-    @Test
-    public void testInvoke_SuccessfulResponse() throws Exception {
-        // Arrange
-        SRComplaintResponseBody srComplaintResponseBody = new SRComplaintResponseBody();
-        srComplaintResponseBody.setPageable(new SRComplaintResponseBody.Pageable(10L));
+Step 2: Switch to the Target Branch
 
-        ResponseEntity<SRComplaintResponseBody> mockResponseEntity =
-                new ResponseEntity<>(srComplaintResponseBody, HttpStatus.OK);
+1. If the branch exists locally:
 
-        when(ivrSRResponseEntityService.getReponseEntityforSR(
-                any(Map.class),
-                eq("URL12"),
-                eq("ServiceRequest"),
-                eq("summary"),
-                eq("MY")
-        )).thenReturn(mockResponseEntity);
+git checkout feature/STORY-6503163
 
-        // Act
-        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result instanceof IVRSRHoldingWrapper);
-        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
-        assertEquals(10, wrapper.getOpenSRCount());
-        assertEquals("MY", wrapper.getCountryCode());
+2. If the branch only exists on the remote:
 
-        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
-                any(Map.class), eq("URL12"), eq("ServiceRequest"), eq("summary"), eq("MY")
-        );
-    }
+git checkout -b feature/STORY-6503163 origin/feature/STORY-6503163
 
-    @Test
-    public void testInvoke_NoResponse() throws Exception {
-        // Arrange
-        when(ivrSRResponseEntityService.getReponseEntityforSR(
-                any(Map.class),
-                eq("URL12"),
-                eq("ServiceRequest"),
-                eq("summary"),
-                eq("MY")
-        )).thenReturn(null);
 
-        // Act
-        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result instanceof IVRSRHoldingWrapper);
-        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
-        assertEquals(0, wrapper.getOpenSRCount());
-        assertEquals("MY", wrapper.getCountryCode());
 
-        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
-                any(Map.class), eq("URL12"), eq("ServiceRequest"), eq("summary"), eq("MY")
-        );
-    }
+---
 
-    @Test
-    public void testInvoke_ExceptionThrown() throws Exception {
-        // Arrange
-        when(ivrSRResponseEntityService.getReponseEntityforSR(
-                any(Map.class),
-                eq("URL12"),
-                eq("ServiceRequest"),
-                eq("summary"),
-                eq("MY")
-        )).thenThrow(new RuntimeException("Service error"));
+Step 3: Move the Commit to the Target Branch
 
-        // Act
-        Object result = ivrServiceRequestDetails.invoke(reqParamMap);
+1. Ensure your changes are committed. If your changes are already committed to main (as seen in your log), you can move them to the target branch by running:
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result instanceof IVRSRHoldingWrapper);
-        IVRSRHoldingWrapper wrapper = (IVRSRHoldingWrapper) result;
-        assertEquals(0, wrapper.getOpenSRCount());
-        assertEquals("MY", wrapper.getCountryCode());
+git checkout feature/STORY-6503163
+git cherry-pick 11451960ebfef13c178871e8dc6e422d6beb7828
 
-        verify(ivrSRResponseEntityService, times(1)).getReponseEntityforSR(
-                any(Map.class), eq("URL12"), eq("ServiceRequest"), eq("summary"), eq("MY")
-        );
-    }
-}
+
+2. Push the changes to the target branch:
+
+git push origin feature/STORY-6503163
+
+
+
+
+---
+
+Step 4: Reset main (Optional)
+
+To remove the commit from main after moving it:
+
+1. Switch to the main branch:
+
+git checkout main
+
+
+2. Reset main to the previous commit:
+
+git reset --hard HEAD~1
+
+
+3. Push the updated main branch to the remote:
+
+git push origin main --force
+
+⚠️ Warning: Only force push if you're sure no one else is working on the main branch.
+
+
+
+
+---
+
+After this, your commit will only exist in the feature/STORY-6503163 branch. Let me know if you encounter any issues!
+
