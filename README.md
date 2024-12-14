@@ -1,76 +1,25 @@
-To commit and push your current changes to the branch origin/feature/STORY-6503163, follow these steps:
+Here’s a corrected version of your email:
 
 
 ---
 
-Step 1: Verify the Target Branch Exists
+Subject: Concern Regarding Code Changes and JUnit Coverage
 
-Check if the branch feature/STORY-6503163 exists locally or on the remote:
+Hi @B, Sindhanavas/@Balasubramaniam, Loganathan,
 
-git branch -a
+I wanted to raise a concern regarding the Phase 1 code. The main classes that include most of the changes for Drop 1, and even the ongoing changes for Drop 2, are CallActivityController and CallActivityServiceImpl. These are the classes where most of the changes are being made, often without my knowledge. Every time new code is added, it reduces the code coverage of my previous work. For instance, last Friday, Farzeen committed some code to both of these classes (CallActivityController and CallActivityServiceImpl), and I was not aware of the development activity being done. This meant it took me additional time to analyze the changes before I could write the corresponding JUnit tests.
 
-If you see remotes/origin/feature/STORY-6503163 in the list, the branch exists on the remote.
+Meanwhile, if someone else also commits code to these same classes, the code coverage will be further reduced, and I will have to do the rework—analyzing the code and then writing the JUnit tests for the new code. As a result, this will prevent us from meeting the estimated deadline.
 
+Therefore, I request that anyone making changes to the code should write the JUnit tests for their own changes. I can write JUnit tests for methods that will not require further changes in the near future.
 
----
+I have already written JUnit tests for the newly introduced SRAPI and CTOM API, and they are successfully providing the required code coverage.
 
-Step 2: Switch to the Target Branch
-
-1. If the branch exists locally:
-
-git checkout feature/STORY-6503163
-
-
-2. If the branch only exists on the remote:
-
-git checkout -b feature/STORY-6503163 origin/feature/STORY-6503163
-
-
+Best regards,
+Kaushik Singh
 
 
 ---
 
-Step 3: Move the Commit to the Target Branch
-
-1. Ensure your changes are committed. If your changes are already committed to main (as seen in your log), you can move them to the target branch by running:
-
-git checkout feature/STORY-6503163
-git cherry-pick 11451960ebfef13c178871e8dc6e422d6beb7828
-
-
-2. Push the changes to the target branch:
-
-git push origin feature/STORY-6503163
-
-
-
-
----
-
-Step 4: Reset main (Optional)
-
-To remove the commit from main after moving it:
-
-1. Switch to the main branch:
-
-git checkout main
-
-
-2. Reset main to the previous commit:
-
-git reset --hard HEAD~1
-
-
-3. Push the updated main branch to the remote:
-
-git push origin main --force
-
-⚠️ Warning: Only force push if you're sure no one else is working on the main branch.
-
-
-
-
----
-
-After this, your commit will only exist in the feature/STORY-6503163 branch. Let me know if you encounter any issues!
+This version should now be grammatically correct and clear. Let me know if you'd like to adjust anything further!
 
