@@ -1,22 +1,12 @@
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.*;
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 
-import import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.runners.MockitoJUnitRunner;
-
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
-@RunWith(MockitoJUnitRunner.class)
 public class CallActivityServiceImplTest {
 
     @InjectMocks
@@ -26,163 +16,92 @@ public class CallActivityServiceImplTest {
     private CemsSectionDataRegAction cemsSecDataReqAction;
 
     @Mock
-    private LoginBean login;
+    private SectionDataResponse sectionDataResponse;
 
+    @Mock
+    private Map<String, Object> values;
+
+    @Mock
     private CallActivity callActivity;
+
+    @Mock
+    private LoginBean loginBean;
+
+    @Mock
+    private UserBean userBean;
 
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-
-        // Mocking CallActivity object
-        callActivity = new CallActivity();
-        callActivity.setCustId("123456");
-        callActivity.setAccountNo("ACC001");
-
-        // Mocking LoginBean and UserBean
-        UserBean userBean = mock(UserBean.class);
-        when(login.getUserBean()).thenReturn(userBean);
-        when(userBean.getCountryCode()).thenReturn("IN");
-        when(userBean.getUserLanguage()).thenReturn("EN");
+        
+        // Setup mock behavior for loginBean and userBean
+        when(loginBean.getUserBean()).thenReturn(userBean);
+        when(userBean.getCountryCode()).thenReturn("US");
+        when(userBean.getCountryShortDesc()).thenReturn("USA");
+        when(userBean.getUserLanguage()).thenReturn("en");
         when(userBean.getUserId()).thenReturn(12345L);
-        when(userBean.getPeoplewiseId()).thenReturn("PS123");
-        when(userBean.getCountryShortDesc()).thenReturn("India");
-        when(userBean.getInstanceCode()).thenReturn("INSTANCE_01");
+        when(userBean.getPeoplewiseId()).thenReturn("PW123");
+        when(userBean.getInstanceCode()).thenReturn("IC001");
         when(userBean.isSalesObjectAccess()).thenReturn(true);
-        when(userBean.getUserRoleId()).thenReturn("ROLE123");
-    }
-
-    @Test
-    public void testAddTransients() {
-        // Mocking SectionDataResponse and Section
-        SectionDataResponse sectionDataResponse = mock(SectionDataResponse.class);
+        when(userBean.getUserRoleId()).thenReturn("ROLE_USER");
+        
+        // Setup mock behavior for cemsSecDataReqAction and sectionDataResponse
+        when(cemsSecDataReqAction.getSectionDataResponse(anyMap(), eq(loginBean))).thenReturn(sectionDataResponse);
+        
+        // Setup mock for sectionDataResponse.getSections()
+        List<Section> sectionList = new ArrayList<>();
         Section section = mock(Section.class);
-
-        // Mocking the data returned by getKeyValGridDataMap
-        Map<String, Object> values = new HashMap<>();
-        values.put("ibankStatus", "Active");
-        values.put("lastLogin", "2024-12-01");
-        values.put("creditLimit", "100000");
-        values.put("riskCode", "LOW");
-        values.put("kycStatus", "Complete");
-        values.put("outstandingBalance", "5000");
-        values.put("currentDueDate", "2024-12-20");
-        values.put("approvedAmount", "150000");
-        values.put("currentInstallment", "1500");
-        values.put("tenure", "36");
-        values.put("accountType", "Savings");
-        values.put("openComplaintsCount", 2);
-        values.put("openSRCount", 3);
-        values.put("sensitiveCust", "Yes");
-
-        // Stubbing methods
-        when(section.getKeyValGridDataMap()).thenReturn(values);
-        when(sectionDataResponse.getSections()).thenReturn(Collections.singletonList(section));
-        when(cemsSecDataReqAction.getSectionDataResponse(anyMap(), eq(login))).thenReturn(sectionDataResponse);
-
-        // Calling the method under test
-        callActivityService.addTransients(callActivity, login);
-
-        // Verifying the CallActivity object
-        assertEquals("Active", callActivity.getIbankStatus());
-        assertEquals("2024-12-01", callActivity.getLastLogin());
-        assertEquals("100000", callActivity.getCreditLimit());
-        assertEquals("LOW", callActivity.getFraudRiskCode());
-        assertEquals("Complete", callActivity.getKyc());
-        assertEquals("5000", callActivity.getLoanBal());
-        assertEquals("2024-12-20", callActivity.getEmiDate());
-        assertEquals("150000", callActivity.getPrincipalLoanAmt());
-        assertEquals("1500", callActivity.getEmiAmount());
-        assertEquals("36", callActivity.getTenure());
-        assertEquals("Savings", callActivity.getAccType());
-        assertEquals("5", callActivity.getOpenSr()); // Sum of complaints and SR counts
-        assertEquals("Yes", callActivity.getSenstvClient());
-
-        // Verify mock interactions
-        verify(cemsSecDataReqAction, times(1)).getSectionDataResponse(anyMap(), eq(login));
-        verify(section, times(1)).getKeyValGridDataMap();
-    }
-}
-import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.mockito.runners.MockitoJUnitRunner;
-
-import java.util.HashMap;
-import java.util.Map;
-
-@RunWith(MockitoJUnitRunner.class)
-public class CallActivityServiceImplTest {
-
-    @InjectMocks
-    private CallActivityServiceImpl callActivityService;
-
-    @Mock
-    private CemsSectionDataRegAction cemsSecDataReqAction;
-
-    @Mock
-    private LoginBean login;
-
-    private CallActivity callActivity;
-
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        callActivity = new CallActivity();
-        login = mock(LoginBean.class);
-
-        // Mocking the login bean and user details
-        UserBean userBean = mock(UserBean.class);
-        when(login.getUserBean()).thenReturn(userBean);
-        when(userBean.getCountryCode()).thenReturn("IN");
-        when(userBean.getUserLanguage()).thenReturn("EN");
-        when(userBean.getUserId()).thenReturn(12345L);
-        when(userBean.getPeoplewiseId()).thenReturn("PS123");
-        when(userBean.getCountryShortDesc()).thenReturn("India");
-        when(userBean.getInstanceCode()).thenReturn("INSTANCE_01");
-        when(userBean.isSalesObjectAccess()).thenReturn(true);
-        when(userBean.getUserRoleId()).thenReturn("ROLE123");
+        Map<String, Object> mockValues = new HashMap<>();
+        mockValues.put("ibankStatus", "active");
+        mockValues.put("lastLogin", "2023-12-12");
+        mockValues.put("creditLimit", "5000");
+        mockValues.put("riskCode", "low");
+        mockValues.put("kycStatus", "completed");
+        mockValues.put("outstanding Balance", "200");
+        mockValues.put("currentDue Date", "2023-12-15");
+        mockValues.put("approvedAmount", "10000");
+        mockValues.put("currentInstallment", "500");
+        mockValues.put("tenure", "12");
+        mockValues.put("accountType", "savings");
+        mockValues.put("openComplaintsCount", 1);
+        mockValues.put("openSRCount", 2);
+        mockValues.put("sensitiveCust", "yes");
+        
+        // Return the mock values
+        when(section.getKeyValGridDataMap()).thenReturn(mockValues);
+        sectionList.add(section);
+        
+        // Simulate that getSections() returns a list containing the mock section
+        when(sectionDataResponse.getSections()).thenReturn(sectionList);
     }
 
     @Test
     public void testAddTransients_success() {
-        // Mocking the response from cemsSecDataReqAction
-        SectionDataResponse sectionDataResponse = mock(SectionDataResponse.class);
-        Section section = mock(Section.class);
-
-        Map<String, Object> keyValGridDataMap = new HashMap<>();
-        keyValGridDataMap.put("ibankStatus", "Active");
-        keyValGridDataMap.put("lastLogin", "2024-12-01");
-        keyValGridDataMap.put("openComplaintsCount", 2);
-        keyValGridDataMap.put("openSRCount", 3);
-
-        when(section.getKeyValGridDataMap()).thenReturn(keyValGridDataMap);
-        when(sectionDataResponse.getSections()).thenReturn(java.util.Collections.singletonList(section));
-        when(cemsSecDataReqAction.getSectionDataResponse(anyMap(), eq(login))).thenReturn(sectionDataResponse);
-
         // Call the method
-        callActivityService.addTransients(callActivity, login);
-
-        // Assertions
-        assertEquals("Active", callActivity.getIbankStatus());
-        assertEquals("2024-12-01", callActivity.getLastLogin());
-        assertEquals("5", callActivity.getOpenSr()); // Sum of openComplaintsCount and openSRCount
+        callActivityService.addTransients(callActivity, loginBean);
+        
+        // Verify if the values are correctly set
+        verify(callActivity).setIbankStatus("active");
+        verify(callActivity).setLastLogin("2023-12-12");
+        verify(callActivity).setCreditLimit("5000");
+        verify(callActivity).setFraudRiskCode("low");
+        verify(callActivity).setkyc("completed");
+        verify(callActivity).setLoanBal("200");
+        verify(callActivity).setEmiDate("2023-12-15");
+        verify(callActivity).setPrincipalLoanAmt("10000");
+        verify(callActivity).setEmiAmount("500");
+        verify(callActivity).setTenure("12");
+        verify(callActivity).setAccType("savings");
+        verify(callActivity).setOpenSr("3");
+        verify(callActivity).setSenstvClient("yes");
     }
 
-    @Test
-    public void testAddTransients_noData() {
-        // Mock an empty response
-        SectionDataResponse sectionDataResponse = mock(SectionDataResponse.class);
-        when(sectionDataResponse.getSections()).thenReturn(java.util.Collections.emptyList());
-        when(cemsSecDataReqAction.getSectionDataResponse(anyMap(), eq(login))).thenReturn(sectionDataResponse);
-
-        // Call the method
-        callActivityService.addTransients(callActivity, login);
-
-        // Assertions for null/empty values
-        assertNull(callActivity.getIbankStatus());
-        assertNull(callActivity.getLastLogin());
-        assertNull(callActivity.getOpenSr());
+    @Test(expected = NullPointerException.class)
+    public void testAddTransients_nullValues() {
+        // Simulate null response from the mock
+        when(sectionDataResponse.getSections()).thenReturn(null);
+        
+        // Call the method with null section data
+        callActivityService.addTransients(callActivity, loginBean);
     }
 }
