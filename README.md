@@ -1,86 +1,25 @@
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
-
-import org.junit.Before;
+import static org.junit.Assert.assertEquals;
 import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
 import java.util.HashMap;
 import java.util.Map;
 
 public class CallActivityServiceImplTest {
 
-    @InjectMocks
-    private CallActivityServiceImpl callActivityService;
-
-    @Mock
-    private VerificationScriptProxy proxy;
-
-    @Mock
-    private VerificationScriptProxyIE IEProxy;
-
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-    }
+    private CallActivityServiceImpl callActivityService = new CallActivityServiceImpl();
 
     @Test
-    public void testGetCustomerInfo() {
-        // Mock data for "AE" countryCode
-        Map<String, Object> aeResponse = new HashMap<>();
-        aeResponse.put("resp", new HashMap<String, String>() {{
-            put("key", "valueAE");
-        }});
+    public void testDefaultIntVal() {
+        Map<String, Object> map = new HashMap<>();
 
-        when(IEProxy.getAnswer(eq("AE"), eq("CUSTINFO"), any(String[].class)))
-                .thenReturn(aeResponse);
+        // Case 1: Key exists with an integer value
+        map.put("key1", 10);
+        assertEquals(10, callActivityService.defaultIntVal(map, "key1"));
 
-        // Mock data for "MY" countryCode
-        Map<String, Object> myResponse = new HashMap<>();
-        myResponse.put("resp", new HashMap<String, String>() {{
-            put("key", "valueMY");
-        }});
+        // Case 2: Key does not exist
+        assertEquals(0, callActivityService.defaultIntVal(map, "key2"));
 
-        when(proxy.getAnswer(eq("MY"), eq("CUSTINFOMY"), any(String[].class)))
-                .thenReturn(myResponse);
-
-        // Mock data for other country codes
-        Map<String, Object> otherResponse = new HashMap<>();
-        otherResponse.put("resp", new HashMap<String, String>() {{
-            put("key", "valueOther");
-        }});
-
-        when(proxy.getAnswer(eq("IN"), eq("CUSTINFO"), any(String[].class)))
-                .thenReturn(otherResponse);
-
-        // Test case for "AE"
-        Map<String, String> resultAE = callActivityService.getCustomerInfo("AE", "12345");
-        assertNotNull(resultAE);
-        assertEquals("valueAE", resultAE.get("key"));
-
-        // Test case for "MY"
-        Map<String, String> resultMY = callActivityService.getCustomerInfo("MY", "67890");
-        assertNotNull(resultMY);
-        assertEquals("valueMY", resultMY.get("key"));
-
-        // Test case for other country code "IN"
-        Map<String, String> resultOther = callActivityService.getCustomerInfo("IN", "99999");
-        assertNotNull(resultOther);
-        assertEquals("valueOther", resultOther.get("key"));
-
-        // Test case for null response
-        when(proxy.getAnswer(eq("IN"), eq("CUSTINFO"), any(String[].class)))
-                .thenReturn(null);
-        Map<String, String> resultNull = callActivityService.getCustomerInfo("IN", "11111");
-        assertNull(resultNull);
-
-        // Test case for response with no "resp" key
-        Map<String, Object> emptyResponse = new HashMap<>();
-        when(proxy.getAnswer(eq("IN"), eq("CUSTINFO"), any(String[].class)))
-                .thenReturn(emptyResponse);
-        Map<String, String> resultEmpty = callActivityService.getCustomerInfo("IN", "22222");
-        assertNull(resultEmpty);
+        // Case 3: Key exists with a null value
+        map.put("key3", null);
+        assertEquals(0, callActivityService.defaultIntVal(map, "key3"));
     }
 }
