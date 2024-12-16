@@ -1,98 +1,98 @@
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.*;
-
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.slf4j.Logger;
+
+@RunWith(MockitoJUnitRunner.class)
 public class CallActivityServiceImplTest {
 
     @InjectMocks
-    private CallActivityServiceImpl callActivityService;
+    private CallActivityServiceImpl callActivityServiceImpl;
 
     @Mock
     private CemsSectionDataRegAction cemsSecDataReqAction;
 
     @Mock
-    private SectionDataResponse sectionDataResponse;
+    private Logger logger;
 
-    @Mock
-    private Section section;
-
-    @Mock
     private CallActivity callActivity;
-
-    @Mock
     private LoginBean loginBean;
-
-    @Mock
-    private UserBean userBean;
+    private Map<String, Object> responseValues;
 
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
+        callActivity = new CallActivity();
+        loginBean = new LoginBean();
 
-        // Setup mock behavior for loginBean and userBean
-        when(loginBean.getUserBean()).thenReturn(userBean);
-        when(userBean.getCountryCode()).thenReturn("US");
-        when(userBean.getCountryShortDesc()).thenReturn("USA");
-        when(userBean.getUserLanguage()).thenReturn("en");
-        when(userBean.getUserId()).thenReturn(12345L);
-        when(userBean.getPeoplewiseId()).thenReturn("PW123");
-        when(userBean.getInstanceCode()).thenReturn("IC001");
-        when(userBean.isSalesObjectAccess()).thenReturn(true);
-        when(userBean.getUserRoleId()).thenReturn("ROLE_USER");
+        // Mocking loginBean setup
+        loginBean.setUserBean(new UserBean());
+        loginBean.getUserBean().setCountryCode("US");
+        loginBean.getUserBean().setUserLanguage("EN");
+        loginBean.getUserBean().setUserId(12345L);
+        loginBean.getUserBean().setPeoplewiseId("PW123");
+        loginBean.getUserBean().setCountryShortDesc("United States");
+        loginBean.getUserBean().setInstanceCode("INST1");
+        loginBean.getUserBean().setSalesObjectAccess(true);
+        loginBean.getUserBean().setUserRole("Admin");
+        loginBean.getUserBean().setUserRoleId("ROLE123");
 
-        // Setup mock behavior for cemsSecDataReqAction and sectionDataResponse
+        // Mocking response values
+        responseValues = new HashMap<>();
+        responseValues.put("ibankStatus", "Active");
+        responseValues.put("lastLogin", "2024-12-16");
+        responseValues.put("creditLimit", "5000");
+        responseValues.put("riskCode", "Low");
+        responseValues.put("kycStatus", "Verified");
+        responseValues.put("outstandingBalance", "10000");
+        responseValues.put("currentDueDate", "2024-12-31");
+        responseValues.put("approvedAmount", "15000");
+        responseValues.put("currentInstallment", "2000");
+        responseValues.put("tenure", "12");
+        responseValues.put("accountType", "Savings");
+        responseValues.put("openComplaintsCount", 2);
+        responseValues.put("openSRCount", 1);
+        responseValues.put("sensitiveCust", "Yes");
+
+        SectionDataResponse sectionDataResponse = mock(SectionDataResponse.class);
+        when(sectionDataResponse.getSections()).thenReturn(
+                List.of(new SectionData().setKeyValGridDataMap(responseValues)));
+
         when(cemsSecDataReqAction.getSectionDataResponse(anyMap(), eq(loginBean)))
-            .thenReturn(sectionDataResponse);
-
-        // Setup mock for sectionDataResponse.getSections()
-        List<Section> sectionList = new ArrayList<>();
-        Map<String, Object> mockValues = new HashMap<>();
-        mockValues.put("ibankStatus", "active");
-        mockValues.put("lastLogin", "2023-12-12");
-        mockValues.put("creditLimit", "5000");
-        mockValues.put("riskCode", "low");
-        mockValues.put("kycStatus", "completed");
-        mockValues.put("outstanding Balance", "200");
-        mockValues.put("currentDue Date", "2023-12-15");
-        mockValues.put("approvedAmount", "10000");
-        mockValues.put("currentInstallment", "500");
-        mockValues.put("tenure", "12");
-        mockValues.put("accountType", "savings");
-        mockValues.put("openComplaintsCount", 1);
-        mockValues.put("openSRCount", 2);
-        mockValues.put("sensitiveCust", "yes");
-
-        // Return the mock values when getKeyValGridDataMap() is called
-        when(section.getKeyValGridDataMap()).thenReturn(mockValues);
-        sectionList.add(section);
-
-        // Simulate that getSections() returns a list containing the mock section
-        when(sectionDataResponse.getSections()).thenReturn(sectionList);
+                .thenReturn(sectionDataResponse);
     }
 
     @Test
-    public void testAddTransients_success() {
-        // Call the method
-        callActivityService.addTransients(callActivity, loginBean);
+    public void testAddTransients() {
+        // Act
+        callActivityServiceImpl.addTransients(callActivity, loginBean);
 
-        // Verify if the values are correctly set
-        verify(callActivity).setIbankStatus("active");
-        verify(callActivity).setLastLogin("2023-12-12");
-        verify(callActivity).setCreditLimit("5000");
-        verify(callActivity).setFraudRiskCode("low");
-        verify(callActivity).setkyc("completed");
-        verify(callActivity).setLoanBal("200");
-        verify(callActivity).setEmiDate("2023-12-15");
-        verify(callActivity).setPrincipalLoanAmt("10000");
-        verify(callActivity).setEmiAmount("500");
-        verify(callActivity).setTenure("12");
-        verify(callActivity).setAccType("savings");
-        verify(callActivity).setOpenSr("3");
-        verify(callActivity).setSenstvClient("yes");
+        // Assert
+        assertEquals("Active", callActivity.getIbankStatus());
+        assertEquals("2024-12-16", callActivity.getLastLogin());
+        assertEquals("5000", callActivity.getCreditLimit());
+        assertEquals("Low", callActivity.getFraudRiskCode());
+        assertEquals("Verified", callActivity.getKyc());
+        assertEquals("10000", callActivity.getLoanBal());
+        assertEquals("2024-12-31", callActivity.getEmiDate());
+        assertEquals("15000", callActivity.getPrincipalLoanAmt());
+        assertEquals("2000", callActivity.getEmiAmount());
+        assertEquals("12", callActivity.getTenure());
+        assertEquals("Savings", callActivity.getAccType());
+        assertEquals("3", callActivity.getOpenSr()); // Complaints + SR
+        assertEquals("Yes", callActivity.getSenstvClient());
+
+        verify(logger, times(responseValues.size())).debug(anyString(), any(), any());
+        verify(cemsSecDataReqAction, times(1)).getSectionDataResponse(anyMap(), eq(loginBean));
     }
 }
