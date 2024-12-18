@@ -1,51 +1,115 @@
-import java.util.ArrayList;
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-@Before
-public void setUp() {
-    MockitoAnnotations.initMocks(this);
-    callActivity = new CallActivity();
-    loginBean = new LoginBean();
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.http.MediaType;
+import org.springframework.ui.ModelMap;
 
-    // Mocking loginBean setup
-    loginBean.setUserBean(new UserBean());
-    loginBean.getUserBean().setCountryCode("US");
-    loginBean.getUserBean().setUserLanguage("EN");
-    loginBean.getUserBean().setUserId(12345L);
-    loginBean.getUserBean().setPeoplewiseId("PW123");
-    loginBean.getUserBean().setCountryShortDesc("United States");
-    loginBean.getUserBean().setInstanceCode("INST1");
-    loginBean.getUserBean().setSalesObjectAccess(true);
-    loginBean.getUserBean().setUserRole("Admin");
-    loginBean.getUserBean().setUserRoleId("ROLE123");
+@RunWith(MockitoJUnitRunner.class)
+public class CallActivityControllerTest {
 
-    // Mocking response values
-    responseValues = new HashMap<>();
-    responseValues.put("ibankStatus", "Active");
-    responseValues.put("lastLogin", "2024-12-16");
-    responseValues.put("creditLimit", "5000");
-    responseValues.put("riskCode", "Low");
-    responseValues.put("kycStatus", "Verified");
-    responseValues.put("outstandingBalance", "10000");
-    responseValues.put("currentDueDate", "2024-12-31");
-    responseValues.put("approvedAmount", "15000");
-    responseValues.put("currentInstallment", "2000");
-    responseValues.put("tenure", "12");
-    responseValues.put("accountType", "Savings");
-    responseValues.put("openComplaintsCount", 2);
-    responseValues.put("openSRCount", 1);
-    responseValues.put("sensitiveCust", "Yes");
+    @InjectMocks
+    private CallActivityController callActivityController;
 
-    SectionDataResponse sectionDataResponse = mock(SectionDataResponse.class);
+    @Mock
+    private MenuAccessRepository menuAccessRepository;
 
-    // Create the list manually
-    List<SectionData> sectionDataList = new ArrayList<>();
-    SectionData sectionData = new SectionData();
-    sectionData.setKeyValGridDataMap(responseValues);
-    sectionDataList.add(sectionData);
+    @Mock
+    private ParamRepository paramRepository;
 
-    when(sectionDataResponse.getSections()).thenReturn(sectionDataList);
+    private LoginBean login;
+    private UserBean userBean;
 
-    when(cemsSecDataReqAction.getSectionDataResponse(anyMap(), eq(loginBean)))
-            .thenReturn(sectionDataResponse);
+    @Before
+    public void setup() {
+        MockitoAnnotations.openMocks(this);
+
+        userBean = new UserBean();
+        userBean.setCountryCode("SG");
+        userBean.setInstanceCode("CB_SG");
+        userBean.setUserRoleId("ROLE_ADMIN");
+
+        login = new LoginBean();
+        login.setUserBean(userBean);
+    }
+
+    @Test
+    public void testGenesysSoftPhone_WhenSoftPhoneIsDisplayed() throws Exception {
+        // Mock menu access repository response
+        MenuItems menuItem = new MenuItems();
+        menuItem.setName("callActivity");
+        when(menuAccessRepository.getMainMenuAndStartMenu(
+                eq("ROLE_ADMIN"),
+                eq("CB_SG"),
+                eq("CEMS"),
+                eq("SG"),
+                eq("en")))
+            .thenReturn(List.of(menuItem));
+
+        // Mock param repository response
+        Param param = new Param("GEN01");
+        String[] data = {"https://iframeurl.com", "FLOW123", "Sample Flow"};
+        param.setData(data);
+        when(paramRepository.getParam(any(Param.class))).thenReturn(param);
+
+        // Act
+        Map<String, Object> response = callActivityController.genesysSoftPhone(login);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("Yes", response.get("isSoftPhoneDisplay"));
+        assertEquals("https://iframeurl.com", response.get("iFrameUrl"));
+        assertEquals("FLOW123", response.get("flowID"));
+        assertEquals("Sample Flow", response.get("flowName"));
+
+        verify(menuAccessRepository, times(1)).getMainMenuAndStartMenu(
+                eq("ROLE_ADMIN"),
+                eq("CB_SG"),
+                eq("CEMS"),
+                eq("SG"),
+                eq("en"));
+        verify(paramRepository, times(1)).getParam(any(Param.class));
+    }
+
+    @Test
+    public void testGenesysSoftPhone_WhenSoftPhoneIsNotDisplayed() throws Exception {
+        // Mock menu access repository response
+        when(menuAccessRepository.getMainMenuAndStartMenu(
+                eq("ROLE_ADMIN"),
+                eq("CB_SG"),
+                eq("CEMS"),
+                eq("SG"),
+                eq("en")))
+            .thenReturn(List.of());
+
+        // Act
+        Map<String, Object> response = callActivityController.genesysSoftPhone(login);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("No", response.get("isSoftPhoneDisplay"));
+        assertNull(response.get("iFrameUrl"));
+        assertNull(response.get("flowID"));
+        assertNull(response.get("flowName"));
+
+        verify(menuAccessRepository, times(1)).getMainMenuAndStartMenu(
+                eq("ROLE_ADMIN"),
+                eq("CB_SG"),
+                eq("CEMS"),
+                eq("SG"),
+                eq("en"));
+        verify(paramRepository, never()).getParam(any(Param.class));
+    }
 }
