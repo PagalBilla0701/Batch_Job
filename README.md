@@ -1,7 +1,5 @@
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.util.HashMap;
 import java.util.List;
@@ -14,8 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.http.MediaType;
-import org.springframework.ui.ModelMap;
 
 @RunWith(MockitoJUnitRunner.class)
 public class CallActivityControllerTest {
@@ -60,7 +56,11 @@ public class CallActivityControllerTest {
 
         // Mock param repository response
         Param param = new Param("GEN01");
-        String[] data = {"https://iframeurl.com", "FLOW123", "Sample Flow"};
+        String[] data = {
+            "https://apps.aps1.pure.cloud/crm/index.html?enableFrameworkClientId=true&dedicatedLoginWindow=true&crm=embeddableframework",
+            "a8cb704f-df4b-44dd-9521-e659b4451947",
+            "MM_MY_v1"
+        };
         param.setData(data);
         when(paramRepository.getParam(any(Param.class))).thenReturn(param);
 
@@ -70,9 +70,12 @@ public class CallActivityControllerTest {
         // Assert
         assertNotNull(response);
         assertEquals("Yes", response.get("isSoftPhoneDisplay"));
-        assertEquals("https://iframeurl.com", response.get("iFrameUrl"));
-        assertEquals("FLOW123", response.get("flowID"));
-        assertEquals("Sample Flow", response.get("flowName"));
+        assertEquals(
+            "https://apps.aps1.pure.cloud/crm/index.html?enableFrameworkClientId=true&dedicatedLoginWindow=true&crm=embeddableframework",
+            response.get("iFrameUrl")
+        );
+        assertEquals("a8cb704f-df4b-44dd-9521-e659b4451947", response.get("flowID"));
+        assertEquals("MM_MY_v1", response.get("flowName"));
 
         verify(menuAccessRepository, times(1)).getMainMenuAndStartMenu(
                 eq("ROLE_ADMIN"),
