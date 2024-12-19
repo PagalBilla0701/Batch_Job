@@ -1,127 +1,74 @@
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
-
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.junit.MockitoJUnitRunner;
 
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 
-@RunWith(MockitoJUnitRunner.class)
-public class CallActivityControllerTest {
+public class AccountServiceTest {
 
     @InjectMocks
-    private CallActivityController callActivityController;
+    private AccountService accountService; // Replace with your actual class name containing the method
 
     @Mock
-    private ParamRepository paramRepository;
+    private CallActivityEDMIService callActivityEDMIService; // Mocking the dependency
+
+    @Mock
+    private IEProxy IEProxy; // Mocking the dependency
+
+    @Mock
+    private Proxy proxy; // Mocking the dependency
 
     @Before
-    public void setup() {
-        MockitoAnnotations.openMocks(this);
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
     }
 
     @Test
-    public void testRetrieveSoftPhoneDetails_WhenSoftPhoneDisplayIsYes() {
-        // Mock the response from ParamRepository
-        final String idParam = "GEN01";
-        Param param = new Param(idParam);
-        param.setCountryCode("SG");
-        Param mockedParamResponse = new Param(idParam);
-        String[] data = {
-            "https://apps.aps1.pure.cloud/crm/index.html?enableFrameworkClientId=true&dedicatedLoginWindow=true&crm=embeddableframework",
-            "a8cb704f-df4b-44dd-9521-e659b4451947",
-            "MM_MY_v1"
-        };
-        mockedParamResponse.setData(data);
+    public void testIdentifyAccountOrCustomerId() {
+        // Mock inputs
+        String countryCodeSG = "SG";
+        String countryCodeIN = "IN";
+        String countryCodeAE = "AE";
+        String accountNumber = "123456";
 
-        when(paramRepository.getParam(any(Param.class))).thenReturn(mockedParamResponse);
+        // Mock outputs
+        Map<String, Object> mockResponseSG = new HashMap<>();
+        Map<String, String> respMapSG = new HashMap<>();
+        respMapSG.put("customerId", "CUST123");
+        mockResponseSG.put("resp", respMapSG);
 
-        // Input for the test
-        String isSoftPhoneDisplay = "Yes";
-        String countryCode = "SG";
+        Map<String, Object> mockResponseAE = new HashMap<>();
+        Map<String, String> respMapAE = new HashMap<>();
+        respMapAE.put("customerId", "CUST456");
+        mockResponseAE.put("resp", respMapAE);
 
-        // Act
-        Map<String, Object> response = new HashMap<>();
-        String iFrameUrl = null;
-        String flowID = null;
-        String flowName = null;
+        // Mock behavior for SG and IN
+        when(callActivityEDMIService.getCustomerAcctRowID(countryCodeSG, accountNumber)).thenReturn(mockResponseSG);
+        when(callActivityEDMIService.getCustomerAcctRowID(countryCodeIN, accountNumber)).thenReturn(mockResponseSG);
 
-        if ("Yes".equals(isSoftPhoneDisplay)) {
-            final String idParamForTest = "GEN01";
-            Param paramForTest = new Param(idParamForTest);
-            paramForTest.setCountryCode(countryCode);
-            Param results = paramRepository.getParam(paramForTest);
+        // Mock behavior for AE
+        when(IEProxy.getAnswer(eq(countryCodeAE), eq("ACCTINFO"), any(String[].class))).thenReturn(mockResponseAE);
 
-            if (results != null) {
-                iFrameUrl = results.getData()[0];
-                flowID = results.getData()[1];
-                flowName = results.getData()[2];
-            }
+        // Mock behavior for other countries
+        when(proxy.getAnswer(eq("US"), eq("ACCTINFO"), any(String[].class))).thenReturn(null);
 
-            response.put("isSoftPhoneDisplay", isSoftPhoneDisplay);
-            response.put("iFrameUrl", iFrameUrl);
-            response.put("flowID", flowID);
-            response.put("flowName", flowName);
-        }
+        // Test for SG
+        Map<String, String> resultSG = accountService.identifyAccountOrCustomerId(countryCodeSG, accountNumber);
+        assertNotNull(resultSG);
+        assertEquals("CUST123", resultSG.get("customerId"));
 
-        // Assert
-        assertNotNull(response);
-        assertEquals("Yes", response.get("isSoftPhoneDisplay"));
-        assertEquals(
-            "https://apps.aps1.pure.cloud/crm/index.html?enableFrameworkClientId=true&dedicatedLoginWindow=true&crm=embeddableframework",
-            response.get("iFrameUrl")
-        );
-        assertEquals("a8cb704f-df4b-44dd-9521-e659b4451947", response.get("flowID"));
-        assertEquals("MM_MY_v1", response.get("flowName"));
+        // Test for AE
+        Map<String, String> resultAE = accountService.identifyAccountOrCustomerId(countryCodeAE, accountNumber);
+        assertNotNull(resultAE);
+        assertEquals("CUST456", resultAE.get("customerId"));
 
-        // Verify
-        verify(paramRepository, times(1)).getParam(any(Param.class));
-    }
-
-    @Test
-    public void testRetrieveSoftPhoneDetails_WhenSoftPhoneDisplayIsNotYes() {
-        // Input for the test
-        String isSoftPhoneDisplay = "No";
-
-        // Act
-        Map<String, Object> response = new HashMap<>();
-        String iFrameUrl = null;
-        String flowID = null;
-        String flowName = null;
-
-        if ("Yes".equals(isSoftPhoneDisplay)) {
-            final String idParamForTest = "GEN01";
-            Param paramForTest = new Param(idParamForTest);
-            paramForTest.setCountryCode("SG");
-            Param results = paramRepository.getParam(paramForTest);
-
-            if (results != null) {
-                iFrameUrl = results.getData()[0];
-                flowID = results.getData()[1];
-                flowName = results.getData()[2];
-            }
-
-            response.put("isSoftPhoneDisplay", isSoftPhoneDisplay);
-            response.put("iFrameUrl", iFrameUrl);
-            response.put("flowID", flowID);
-            response.put("flowName", flowName);
-        }
-
-        // Assert
-        assertNotNull(response);
-        assertEquals(0, response.size());
-        assertFalse(response.containsKey("isSoftPhoneDisplay"));
-        assertFalse(response.containsKey("iFrameUrl"));
-        assertFalse(response.containsKey("flowID"));
-        assertFalse(response.containsKey("flowName"));
-
-        // Verify
-        verify(paramRepository, never()).getParam(any(Param.class));
+        // Test for other countries
+        Map<String, String> resultOther = accountService.identifyAccountOrCustomerId("US", accountNumber);
+        assertNull(resultOther);
     }
 }
