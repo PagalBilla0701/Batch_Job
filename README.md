@@ -2,10 +2,10 @@
 public class CallActivityControllerTest {
 
     @Mock
-    private RestTemplate restTemplate;
+    private ParamRepository paramRepository;
 
     @Mock
-    private ParamRepository paramRepository;
+    private RestTemplate restTemplate;
 
     @InjectMocks
     private CallActivityController controller;
@@ -20,7 +20,8 @@ public class CallActivityControllerTest {
         // Mock Param response
         Param mockParam = new Param("IVR01");
         mockParam.setCountryCode(countryCode);
-        mockParam.setData(new String[] {null, null, null, null, null, null, "http://example.com", "/path"});
+        mockParam.setData(new String[] {null, null, null, null, null, null, 
+            "https://rdc-gbl-cems-test-cops-ivr-api.int-cpbb.ocp.dev.net/v1/cems/ivr/pref-lang", "?relId="});
         when(paramRepository.getParam(any(Param.class))).thenReturn(mockParam);
 
         // Mock API response
@@ -36,6 +37,7 @@ public class CallActivityControllerTest {
 
         // Verify
         assertEquals("Success", result);
+        verify(paramRepository, times(1)).getParam(any(Param.class));
         verify(restTemplate, times(1))
                 .exchange(any(URI.class), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Map.class));
     }
