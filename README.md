@@ -1,74 +1,58 @@
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
-import java.util.HashMap;
-import java.util.Map;
-
-public class AccountServiceTest {
+@RunWith(MockitoJUnitRunner.class)
+public class YourClassTest {
 
     @InjectMocks
-    private AccountService accountService; // Replace with your actual class name containing the method
+    private YourClass yourClass; // Replace with your class name containing the method
 
     @Mock
-    private CallActivityEDMIService callActivityEDMIService; // Mocking the dependency
+    private RestTemplate restTemplate;
 
     @Mock
-    private IEProxy IEProxy; // Mocking the dependency
+    private ParamRepository paramRepository;
 
     @Mock
-    private Proxy proxy; // Mocking the dependency
-
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-    }
+    private Logger logger; // If using a logger in your class
 
     @Test
-    public void testIdentifyAccountOrCustomerId() {
-        // Mock inputs
-        String countryCodeSG = "SG";
-        String countryCodeIN = "IN";
-        String countryCodeAE = "AE";
-        String accountNumber = "123456";
+    public void testUpdatePreferredLanguage() throws Exception {
+        // Arrange
+        String countryCode = "US";
+        String custId = "12345";
+        String userId = "user123";
 
-        // Mock outputs
-        Map<String, Object> mockResponseSG = new HashMap<>();
-        Map<String, String> respMapSG = new HashMap<>();
-        respMapSG.put("customerId", "CUST123");
-        mockResponseSG.put("resp", respMapSG);
+        String idParam = "IVR01";
+        Param param = new Param(idParam);
+        param.setCountryCode(countryCode);
 
-        Map<String, Object> mockResponseAE = new HashMap<>();
-        Map<String, String> respMapAE = new HashMap<>();
-        respMapAE.put("customerId", "CUST456");
-        mockResponseAE.put("resp", respMapAE);
+        Param results = new Param();
+        results.setData(new String[]{"", "", "", "", "", "", "http://test-api.com", "/delete"});
+        Mockito.when(paramRepository.getParam(Mockito.any())).thenReturn(results);
 
-        // Mock behavior for SG and IN
-        when(callActivityEDMIService.getCustomerAcctRowID(countryCodeSG, accountNumber)).thenReturn(mockResponseSG);
-        when(callActivityEDMIService.getCustomerAcctRowID(countryCodeIN, accountNumber)).thenReturn(mockResponseSG);
+        String expectedUrl = "http://test-api.com/delete";
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("status", "SUCCESS");
 
-        // Mock behavior for AE
-        when(IEProxy.getAnswer(eq(countryCodeAE), eq("ACCTINFO"), any(String[].class))).thenReturn(mockResponseAE);
+        ResponseEntity<Map> responseEntity = new ResponseEntity<>(responseMap, HttpStatus.OK);
+        Mockito.when(restTemplate.exchange(
+                Mockito.any(URI.class),
+                Mockito.eq(HttpMethod.DELETE),
+                Mockito.any(HttpEntity.class),
+                Mockito.eq(Map.class))
+        ).thenReturn(responseEntity);
 
-        // Mock behavior for other countries
-        when(proxy.getAnswer(eq("US"), eq("ACCTINFO"), any(String[].class))).thenReturn(null);
+        // Act
+        String result = yourClass.updatePreferredLanguage(countryCode, custId, userId);
 
-        // Test for SG
-        Map<String, String> resultSG = accountService.identifyAccountOrCustomerId(countryCodeSG, accountNumber);
-        assertNotNull(resultSG);
-        assertEquals("CUST123", resultSG.get("customerId"));
+        // Assert
+        Assert.assertEquals("SUCCESS", result);
 
-        // Test for AE
-        Map<String, String> resultAE = accountService.identifyAccountOrCustomerId(countryCodeAE, accountNumber);
-        assertNotNull(resultAE);
-        assertEquals("CUST456", resultAE.get("customerId"));
-
-        // Test for other countries
-        Map<String, String> resultOther = accountService.identifyAccountOrCustomerId("US", accountNumber);
-        assertNull(resultOther);
+        // Verify interactions
+        Mockito.verify(paramRepository, Mockito.times(1)).getParam(Mockito.any());
+        Mockito.verify(restTemplate, Mockito.times(1)).exchange(
+                Mockito.any(URI.class),
+                Mockito.eq(HttpMethod.DELETE),
+                Mockito.any(HttpEntity.class),
+                Mockito.eq(Map.class)
+        );
     }
 }
