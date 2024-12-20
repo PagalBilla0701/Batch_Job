@@ -1,8 +1,26 @@
-@RunWith(MockitoJUnitRunner.class)
-public class YourClassTest {
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
+
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+public class UpdatePreferredLanguageTest {
 
     @InjectMocks
-    private YourClass yourClass; // Replace with your class name containing the method
+    private YourServiceClass yourService; // Replace with your actual class name
 
     @Mock
     private RestTemplate restTemplate;
@@ -10,49 +28,61 @@ public class YourClassTest {
     @Mock
     private ParamRepository paramRepository;
 
-    @Mock
-    private Logger logger; // If using a logger in your class
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+    }
 
     @Test
-    public void testUpdatePreferredLanguage() throws Exception {
-        // Arrange
+    public void testUpdatePreferredLanguage_Success() throws Exception {
+        // Mock input
         String countryCode = "US";
-        String custId = "12345";
-        String userId = "user123";
+        String custId = "123456";
+        String userId = "testUser";
 
-        String idParam = "IVR01";
-        Param param = new Param(idParam);
-        param.setCountryCode(countryCode);
+        // Mock Param response
+        Param mockParam = new Param("IVR01");
+        mockParam.setCountryCode(countryCode);
+        when(paramRepository.getParam(any(Param.class))).thenReturn(new Param("IVR01", new String[] {
+            null, null, null, null, null, null, "http://mock-api.com", "/path"
+        }));
 
-        Param results = new Param();
-        results.setData(new String[]{"", "", "", "", "", "", "http://test-api.com", "/delete"});
-        Mockito.when(paramRepository.getParam(Mockito.any())).thenReturn(results);
+        // Mock API response
+        Map<String, Object> mockResponseBody = new HashMap<>();
+        mockResponseBody.put("status", "Success");
 
-        String expectedUrl = "http://test-api.com/delete";
-        Map<String, Object> responseMap = new HashMap<>();
-        responseMap.put("status", "SUCCESS");
+        ResponseEntity<Map> mockResponse = new ResponseEntity<>(mockResponseBody, HttpStatus.OK);
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.DELETE), any(), eq(Map.class)))
+            .thenReturn(mockResponse);
 
-        ResponseEntity<Map> responseEntity = new ResponseEntity<>(responseMap, HttpStatus.OK);
-        Mockito.when(restTemplate.exchange(
-                Mockito.any(URI.class),
-                Mockito.eq(HttpMethod.DELETE),
-                Mockito.any(HttpEntity.class),
-                Mockito.eq(Map.class))
-        ).thenReturn(responseEntity);
+        // Call the method
+        String result = yourService.updatePreferredLanguage(countryCode, custId, userId);
 
-        // Act
-        String result = yourClass.updatePreferredLanguage(countryCode, custId, userId);
+        // Verify
+        assertEquals("Success", result);
+        verify(restTemplate, times(1))
+            .exchange(any(URI.class), eq(HttpMethod.DELETE), any(), eq(Map.class));
+    }
 
-        // Assert
-        Assert.assertEquals("SUCCESS", result);
+    @Test(expected = Exception.class)
+    public void testUpdatePreferredLanguage_Exception() throws Exception {
+        // Mock input
+        String countryCode = "US";
+        String custId = "123456";
+        String userId = "testUser";
 
-        // Verify interactions
-        Mockito.verify(paramRepository, Mockito.times(1)).getParam(Mockito.any());
-        Mockito.verify(restTemplate, Mockito.times(1)).exchange(
-                Mockito.any(URI.class),
-                Mockito.eq(HttpMethod.DELETE),
-                Mockito.any(HttpEntity.class),
-                Mockito.eq(Map.class)
-        );
+        // Mock Param response
+        Param mockParam = new Param("IVR01");
+        mockParam.setCountryCode(countryCode);
+        when(paramRepository.getParam(any(Param.class))).thenReturn(new Param("IVR01", new String[] {
+            null, null, null, null, null, null, "http://mock-api.com", "/path"
+        }));
+
+        // Mock API exception
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.DELETE), any(), eq(Map.class)))
+            .thenThrow(new RuntimeException("API Error"));
+
+        // Call the method
+        yourService.updatePreferredLanguage(countryCode, custId, userId);
     }
 }
