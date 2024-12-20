@@ -11,7 +11,7 @@ public class CallActivityControllerTest {
     private CallActivityController controller;
 
     @Test
-    public void testUpdatePreferredLanguage_Success() throws Exception {
+    public void testUpdatePreferredLanguage_ExceptionHandling() throws Exception {
         // Mock input
         String countryCode = "MY";
         String custId = "01460923085100";
@@ -24,19 +24,17 @@ public class CallActivityControllerTest {
             "https://rdc-gbl-cems-test-cops-ivr-api.int-cpbb.ocp.dev.net/v1/cems/ivr/pref-lang", "?relId="});
         when(paramRepository.getParam(any(Param.class))).thenReturn(mockParam);
 
-        // Mock API response
-        Map<String, Object> mockResponseBody = new HashMap<>();
-        mockResponseBody.put("status", "Success");
-        ResponseEntity<Map> mockResponse = new ResponseEntity<>(mockResponseBody, HttpStatus.OK);
-
+        // Mock API exception
         when(restTemplate.exchange(any(URI.class), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Map.class)))
-                .thenReturn(mockResponse);
+                .thenThrow(new RuntimeException("Mocked exception"));
 
         // Call the method
         String result = controller.updatePreferredLanguage(countryCode, custId, userId);
 
-        // Verify
-        assertEquals("Success", result);
+        // Verify that exception is handled gracefully
+        assertEquals("Error occured in invoking API", result);
+
+        // Verify method interactions
         verify(paramRepository, times(1)).getParam(any(Param.class));
         verify(restTemplate, times(1))
                 .exchange(any(URI.class), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Map.class));
