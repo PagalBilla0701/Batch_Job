@@ -5,134 +5,91 @@ public class CallActivityServiceImplTest {
     private CallActivityServiceImpl callActivityService;
 
     @Mock
-    private VerificationScriptProxy proxy;
+    private SectionDataResponse sectionDataResponse;
 
     @Mock
-    private VerificationScriptProxyIE IEProxy;
+    private CallActivity callActivity;
 
     @Mock
-    private CallActivityEDMIService callActivityEDMIService;
+    private LoginBean loginBean;
 
-    private static final String COUNTRY_CODE = "IN";
-    private static final String CREDIT_CARD_NO = "1234567890123456";
-    private static final String ACCOUNT_NUMBER = "987654321";
-    private static final String CURRENCY_CODE = "USD";
-    private static final String PRODUCT_TYPE = "Savings";
+    @Mock
+    private Logger logger;
+
+    private Map<String, Object> responseValues;
 
     @Before
     public void setup() {
         MockitoAnnotations.openMocks(this);
+
+        // Set up the mocked CallActivity
+        callActivity = new CallActivity();
+        callActivity.setCustId("12345");
+        callActivity.setOneFa("1FA_Example");
+        callActivity.setTwoFa("2FA_Example");
+        callActivity.setAvailableAuth("AUTH_A | AUTH_B");
+        callActivity.setFailedAuthOne("AUTH_C");
+        callActivity.setFailedAuthTwo("AUTH_D");
+
+        // Set up the mocked SectionDataResponse
+        sectionDataResponse = new SectionDataResponse();
+        List<SectionData> sections = new ArrayList<>();
+        SectionData section = new SectionData();
+        section.setKeyValGridDataMap(new HashMap<>());
+        section.setGridMetaData(new ArrayList<>());
+        sections.add(section);
+        sectionDataResponse.setSections(sections);
     }
 
     @Test
-    public void testEnquireCardDetails() {
-        Map<String, Object> mockResponse = new HashMap<>();
-        Map<String, String> respMap = new HashMap<>();
-        respMap.put("cardHolder", "John Doe");
-        mockResponse.put("resp", respMap);
+    public void testRenderCallInfo_GeneralCall() {
+        // Arrange
+        Mockito.when(callActivity.isOneFaVerifed()).thenReturn(true);
+        Mockito.when(callActivity.isGenCall()).thenReturn(true);
+        Mockito.when(callActivity.getTwoFaVerificationType()).thenReturn("OTP");
+        Mockito.when(callActivity.getTwoFaVerificationStatus()).thenReturn("Verified");
 
-        Mockito.when(proxy.getAnswer(COUNTRY_CODE, "CCARDINFO", new String[]{"Account", CREDIT_CARD_NO}))
-               .thenReturn(mockResponse);
+        // Act
+        SectionDataResponse response = callActivityService.renderCallInfo(callActivity, true, "MY", loginBean);
 
-        Map<String, String> result = callActivityService.enquireCardDetails(COUNTRY_CODE, CREDIT_CARD_NO);
-
-        Assert.assertNotNull(result);
-        Assert.assertEquals("John Doe", result.get("cardHolder"));
+        // Assert
+        Assert.assertNotNull(response);
+        Assert.assertEquals(1, response.getSections().size());
+        Assert.assertEquals("OTP", response.getSections().get(0).getKeyValGridDataMap().get("twofaVerificationType"));
+        Assert.assertEquals("Verified", response.getSections().get(0).getKeyValGridDataMap().get("twofaVerificationStatus"));
     }
 
     @Test
-    public void testGetLinkedCustomers() {
-        Map<String, Object> mockResponse = new HashMap<>();
-        List<Map<String, String>> respList = new ArrayList<>();
-        Map<String, String> customerData = new HashMap<>();
-        customerData.put("customerId", "CUST123");
-        respList.add(customerData);
-        mockResponse.put("resp", respList);
+    public void testRenderCallInfo_NonGeneralCall() {
+        // Arrange
+        Mockito.when(callActivity.isOneFaVerifed()).thenReturn(false);
+        Mockito.when(callActivity.isGenCall()).thenReturn(false);
+        Mockito.when(callActivity.getTwoFaVerificationType()).thenReturn("SoftToken");
+        Mockito.when(callActivity.getTwoFaVerificationStatus()).thenReturn("Not Verified");
 
-        Mockito.when(proxy.getAnswer(COUNTRY_CODE, "LINKEDCUST", new String[]{"Account", ACCOUNT_NUMBER, CURRENCY_CODE}))
-               .thenReturn(mockResponse);
+        // Act
+        SectionDataResponse response = callActivityService.renderCallInfo(callActivity, false, "SG", loginBean);
 
-        List<Map<String, String>> result = callActivityService.getLinkedCustomers(COUNTRY_CODE, ACCOUNT_NUMBER, CURRENCY_CODE);
-
-        Assert.assertNotNull(result);
-        Assert.assertEquals(1, result.size());
-        Assert.assertEquals("CUST123", result.get(0).get("customerId"));
+        // Assert
+        Assert.assertNotNull(response);
+        Assert.assertEquals(1, response.getSections().size());
+        Assert.assertEquals("SoftToken", response.getSections().get(0).getKeyValGridDataMap().get("twofaVerificationType"));
+        Assert.assertEquals("Not Verified", response.getSections().get(0).getKeyValGridDataMap().get("twofaVerificationStatus"));
     }
 
     @Test
-    public void testGetLinkedCustomersForAE() {
-        Map<String, Object> mockResponse = new HashMap<>();
-        List<Map<String, String>> respList = new ArrayList<>();
-        Map<String, String> customerData = new HashMap<>();
-        customerData.put("customerId", "CUST456");
-        respList.add(customerData);
-        mockResponse.put("resp", respList);
+    public void testModifyTwoFaForGenCall() {
+        // Arrange
+        Mockito.when(callActivity.getTwoFaVerificationType()).thenReturn("OTP");
+        Mockito.when(callActivity.getTwoFaVerificationStatus()).thenReturn("Verified");
 
-        Mockito.when(IEProxy.getAnswer(COUNTRY_CODE, "LINKEDCUST", new String[]{"Account", ACCOUNT_NUMBER, CURRENCY_CODE, PRODUCT_TYPE}))
-               .thenReturn(mockResponse);
+        // Act
+        List<SectionData> sections = callActivityService.modifyTwoFaForGenCall(sectionDataResponse, callActivity);
 
-        List<Map<String, String>> result = callActivityService.getLinkedCustomersForAE(COUNTRY_CODE, ACCOUNT_NUMBER, CURRENCY_CODE, PRODUCT_TYPE);
-
-        Assert.assertNotNull(result);
-        Assert.assertEquals(1, result.size());
-        Assert.assertEquals("CUST456", result.get(0).get("customerId"));
-    }
-
-    @Test
-    public void testEnquireFDAccount() {
-        Map<String, Object> mockResponse = new HashMap<>();
-        Map<String, String> respMap = new HashMap<>();
-        respMap.put("fdAccount", "FD123456");
-        mockResponse.put("resp", respMap);
-
-        Mockito.when(proxy.getAnswer(COUNTRY_CODE, "TDINFO", new String[]{"Account", ACCOUNT_NUMBER, CURRENCY_CODE}))
-               .thenReturn(mockResponse);
-
-        Map<String, String> result = callActivityService.enquireFDAccount(COUNTRY_CODE, ACCOUNT_NUMBER, CURRENCY_CODE);
-
-        Assert.assertNotNull(result);
-        Assert.assertEquals("FD123456", result.get("fdAccount"));
-    }
-
-    @Test
-    public void testEnquireAccount() {
-        Map<String, Object> mockResponse = new HashMap<>();
-        Map<String, String> respMap = new HashMap<>();
-        respMap.put("accountHolder", "Jane Smith");
-        mockResponse.put("resp", respMap);
-
-        Mockito.when(proxy.getAnswer(COUNTRY_CODE, "EBBSINFO", new String[]{"Account", ACCOUNT_NUMBER, CURRENCY_CODE}))
-               .thenReturn(mockResponse);
-
-        Map<String, String> result = callActivityService.enquireAccount(COUNTRY_CODE, ACCOUNT_NUMBER, CURRENCY_CODE);
-
-        Assert.assertNotNull(result);
-        Assert.assertEquals("Jane Smith", result.get("accountHolder"));
-    }
-
-    @Test
-    public void testEnquireLoanAccount() {
-        Map<String, Object> mockResponse = new HashMap<>();
-        Map<String, String> respMap = new HashMap<>();
-        respMap.put("loanAccount", "LN987654");
-        mockResponse.put("resp", respMap);
-
-        Mockito.when(proxy.getAnswer(COUNTRY_CODE, "RLSINFO", new String[]{"Account", ACCOUNT_NUMBER}))
-               .thenReturn(mockResponse);
-
-        Map<String, String> result = callActivityService.enquireLoanAccount(COUNTRY_CODE, ACCOUNT_NUMBER);
-
-        Assert.assertNotNull(result);
-        Assert.assertEquals("LN987654", result.get("loanAccount"));
-    }
-
-    @Test
-    public void testGetLinkedCustomers_NullResponse() {
-        Mockito.when(proxy.getAnswer(COUNTRY_CODE, "LINKEDCUST", new String[]{"Account", ACCOUNT_NUMBER, CURRENCY_CODE}))
-               .thenReturn(null);
-
-        List<Map<String, String>> result = callActivityService.getLinkedCustomers(COUNTRY_CODE, ACCOUNT_NUMBER, CURRENCY_CODE);
-
-        Assert.assertNull(result);
+        // Assert
+        Assert.assertNotNull(sections);
+        Assert.assertEquals(1, sections.size());
+        Assert.assertEquals("OTP", sections.get(0).getKeyValGridDataMap().get("twofaVerificationType"));
+        Assert.assertEquals("Verified", sections.get(0).getKeyValGridDataMap().get("twofaVerificationStatus"));
     }
 }
