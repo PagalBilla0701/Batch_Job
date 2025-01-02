@@ -1,42 +1,34 @@
-@RunWith(MockitoJUnitRunner.class)
-public class CallActivityControllerTest {
+@Test
+public void testIdentifyAccountOrCustomerId() {
+    // Mock inputs
+    String countryCodeSG = "SG";
+    String countryCodeAE = "AE";
+    String accountNumber = "123456";
 
-    @Mock
-    private ParamRepository paramRepository;
+    // Mock outputs
+    Map<String, Object> mockResponseSG = new HashMap<>();
+    Map<String, String> respMapSG = new HashMap<>();
+    respMapSG.put("customerId", "CUST123");
+    mockResponseSG.put("resp", respMapSG);
 
-    @Mock
-    private RestTemplate restTemplate;
+    Map<String, Object> mockResponseAE = new HashMap<>();
+    Map<String, String> respMapAE = new HashMap<>();
+    respMapAE.put("customerId", "CUST456");
+    mockResponseAE.put("resp", respMapAE);
 
-    @InjectMocks
-    private CallActivityController controller;
+    // Mock behavior
+    lenient().when(callActivityEDMIService.getCustomerAcctRowID(countryCodeSG, accountNumber))
+             .thenReturn(mockResponseSG);
+    when(IEProxy.getAnswer(eq(countryCodeAE), eq("ACCTINFO"), any(String[].class)))
+        .thenReturn(mockResponseAE);
 
-    @Test
-    public void testUpdatePreferredLanguage_ExceptionHandling() throws Exception {
-        // Mock input
-        String countryCode = "MY";
-        String custId = "01460923085100";
-        String userId = "1200085";
+    // Test for SG
+    Map<String, String> resultSG = callActivityService.identifyAccountOrCustomerId(countryCodeSG, accountNumber);
+    assertNotNull(resultSG);
+    assertEquals("CUST123", resultSG.get("customerId"));
 
-        // Mock Param response
-        Param mockParam = new Param("IVR01");
-        mockParam.setCountryCode(countryCode);
-        mockParam.setData(new String[] {null, null, null, null, null, null, 
-            "https://rdc-gbl-cems-test-cops-ivr-api.int-cpbb.ocp.dev.net/v1/cems/ivr/pref-lang", "?relId="});
-        when(paramRepository.getParam(any(Param.class))).thenReturn(mockParam);
-
-        // Mock API exception
-        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Map.class)))
-                .thenThrow(new RuntimeException("Mocked exception"));
-
-        // Call the method
-        String result = controller.updatePreferredLanguage(countryCode, custId, userId);
-
-        // Verify that exception is handled gracefully
-        assertEquals("Error occured in invoking API", result);
-
-        // Verify method interactions
-        verify(paramRepository, times(1)).getParam(any(Param.class));
-        verify(restTemplate, times(1))
-                .exchange(any(URI.class), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Map.class));
-    }
+    // Test for AE
+    Map<String, String> resultAE = callActivityService.identifyAccountOrCustomerId(countryCodeAE, accountNumber);
+    assertNotNull(resultAE);
+    assertEquals("CUST456", resultAE.get("customerId"));
 }
