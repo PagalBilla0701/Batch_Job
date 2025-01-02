@@ -16,16 +16,18 @@ public class CallActivityServiceImplTest {
     @Mock
     private Logger logger;
 
-    @Spy
-    private SectionDataResponse spySectionDataResponse;
-
     @Before
     public void setup() {
         MockitoAnnotations.openMocks(this);
 
-        // Mock CallActivity behavior
-        Mockito.when(callActivity.getTwoFaVerificationType()).thenReturn("OTP");
-        Mockito.when(callActivity.getTwoFaVerificationStatus()).thenReturn("Verified");
+        // Mock sectionDataResponse behavior
+        List<SectionData> sections = new ArrayList<>();
+        SectionData section = new SectionData();
+        section.setKeyValGridDataMap(new HashMap<>());
+        section.setGridMetaData(new ArrayList<>());
+        sections.add(section);
+
+        Mockito.when(sectionDataResponse.getSections()).thenReturn(sections);
     }
 
     @Test
@@ -33,14 +35,8 @@ public class CallActivityServiceImplTest {
         // Arrange
         Mockito.when(callActivity.isOneFaVerifed()).thenReturn(true);
         Mockito.when(callActivity.isGenCall()).thenReturn(true);
-        Mockito.when(callActivity.getCustId()).thenReturn("12345");
-
-        List<SectionData> sections = new ArrayList<>();
-        SectionData section = new SectionData();
-        section.setKeyValGridDataMap(new HashMap<>());
-        sections.add(section);
-
-        Mockito.when(sectionDataResponse.getSections()).thenReturn(sections);
+        Mockito.when(callActivity.getTwoFaVerificationType()).thenReturn("OTP");
+        Mockito.when(callActivity.getTwoFaVerificationStatus()).thenReturn("Verified");
 
         // Act
         SectionDataResponse response = callActivityService.renderCallInfo(callActivity, true, "MY", loginBean);
@@ -57,13 +53,8 @@ public class CallActivityServiceImplTest {
         // Arrange
         Mockito.when(callActivity.isOneFaVerifed()).thenReturn(false);
         Mockito.when(callActivity.isGenCall()).thenReturn(false);
-
-        List<SectionData> sections = new ArrayList<>();
-        SectionData section = new SectionData();
-        section.setKeyValGridDataMap(new HashMap<>());
-        sections.add(section);
-
-        Mockito.when(sectionDataResponse.getSections()).thenReturn(sections);
+        Mockito.when(callActivity.getTwoFaVerificationType()).thenReturn("SoftToken");
+        Mockito.when(callActivity.getTwoFaVerificationStatus()).thenReturn("Not Verified");
 
         // Act
         SectionDataResponse response = callActivityService.renderCallInfo(callActivity, false, "SG", loginBean);
@@ -71,7 +62,7 @@ public class CallActivityServiceImplTest {
         // Assert
         Assert.assertNotNull(response);
         Assert.assertEquals(1, response.getSections().size());
-        Assert.assertEquals("OTP", response.getSections().get(0).getKeyValGridDataMap().get("twofaVerificationType"));
-        Assert.assertEquals("Verified", response.getSections().get(0).getKeyValGridDataMap().get("twofaVerificationStatus"));
+        Assert.assertEquals("SoftToken", response.getSections().get(0).getKeyValGridDataMap().get("twofaVerificationType"));
+        Assert.assertEquals("Not Verified", response.getSections().get(0).getKeyValGridDataMap().get("twofaVerificationStatus"));
     }
 }
