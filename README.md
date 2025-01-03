@@ -1,44 +1,26 @@
-@RunWith(MockitoJUnitRunner.class)
-public class CallActivityServiceImplTest {
+   Subject: Progress on Writing JUnit Test Cases for Service-Level Classes
 
-    @InjectMocks
-    private CallActivityServiceImpl callActivityService;
+Hi Sindha,
 
-    @Mock
-    private CallActivity callActivity;
+As per my discussion with Selva, I have been advised to focus on writing JUnit test cases for the service-level classes. Since there are a lot of service classes to cover, Selva suggested that I start by picking 2-3 classes and write test cases for them.
 
-    @Mock
-    private SectionDataResponse sectionDataResponse;
+I plan to write 4-8 test cases per day for the selected classes. To begin with, I have chosen 3 classes, which contain 68, 50, and 30 methods, respectively. I will proceed with the CollectedServiceImpl class first, and once I complete this, I will move on to the others.
 
-    @Mock
-    private LoginBean loginBean;
+Please find the attachment for further details.
 
-    @Before
-    public void setup() {
-        MockitoAnnotations.openMocks(this); // Initialize mocks
-    }
+Let me know if you need any additional information.
 
-    @Test
-    public void testRenderCallInfo_GeneralCall() {
-        // Arrange
-        Mockito.when(callActivity.isOneFaVerifed()).thenReturn(true);
-        Mockito.when(callActivity.isGenCall()).thenReturn(true);
-        Mockito.when(callActivity.getTwoFaVerificationType()).thenReturn("OTP");
-        Mockito.when(callActivity.getTwoFaVerificationStatus()).thenReturn("Verified");
+Best regards,
+KaushikSubject: Progress Update: Writing JUnit Test Cases for Service-Level Classes
 
-        List<SectionData> sections = new ArrayList<>();
-        SectionData section = new SectionData();
-        section.setKeyValGridDataMap(new HashMap<>());
-        sections.add(section);
-        Mockito.when(sectionDataResponse.getSections()).thenReturn(sections);
+Hi Sindha,
 
-        // Act
-        SectionDataResponse response = callActivityService.renderCallInfo(callActivity, true, "MY", loginBean);
+I wanted to update you on the JUnit test cases I’m working on, as discussed with Selva. Since there are quite a few service-level classes to cover, Selva suggested I start by picking 2-3 classes and focus on writing test cases for them.
 
-        // Assert
-        Assert.assertNotNull(response);
-        Assert.assertEquals(1, response.getSections().size());
-        Assert.assertEquals("OTP", response.getSections().get(0).getKeyValGridDataMap().get("twofaVerificationType"));
-        Assert.assertEquals("Verified", response.getSections().get(0).getKeyValGridDataMap().get("twofaVerificationStatus"));
-    }
-}
+For now, I’ve selected three classes with 68, 50, and 30 methods. My plan is to write 4-8 test cases per day, starting with the CollectedServiceImpl class. Once I finish this, I’ll move on to the next ones.
+
+I’ve attached more details for your reference. Let me know if you need anything else or have additional suggestions!
+
+Best regards,
+Kaushik
+
