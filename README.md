@@ -1,26 +1,99 @@
-   Subject: Progress on Writing JUnit Test Cases for Service-Level Classes
+@RunWith(MockitoJUnitRunner.class)
+public class CallActivityServiceImplTest {
 
-Hi Sindha,
+    @InjectMocks
+    private CallActivityServiceImpl callActivityService;
 
-As per my discussion with Selva, I have been advised to focus on writing JUnit test cases for the service-level classes. Since there are a lot of service classes to cover, Selva suggested that I start by picking 2-3 classes and write test cases for them.
+    @Mock
+    private CemsUiIntegrator cemsUiIntegrator;
 
-I plan to write 4-8 test cases per day for the selected classes. To begin with, I have chosen 3 classes, which contain 68, 50, and 30 methods, respectively. I will proceed with the CollectedServiceImpl class first, and once I complete this, I will move on to the others.
+    @Mock
+    private CallActivityAction callActivityAction;
 
-Please find the attachment for further details.
+    @Mock
+    private Logger logger;
 
-Let me know if you need any additional information.
+    private Map<String, Object> responseValues;
 
-Best regards,
-KaushikSubject: Progress Update: Writing JUnit Test Cases for Service-Level Classes
+    @Before
+    public void setup() {
+        MockitoAnnotations.openMocks(this);
+    }
 
-Hi Sindha,
+    @Test
+    public void testDefaultIntVal() {
+        // Prepare test data
+        Map<String, Object> map = new HashMap<>();
+        map.put("key1", 5);
+        map.put("key2", null);
 
-I wanted to update you on the JUnit test cases I’m working on, as discussed with Selva. Since there are quite a few service-level classes to cover, Selva suggested I start by picking 2-3 classes and focus on writing test cases for them.
+        // Test valid key
+        int result = callActivityService.defaultIntVal(map, "key1");
+        Assert.assertEquals(5, result);
 
-For now, I’ve selected three classes with 68, 50, and 30 methods. My plan is to write 4-8 test cases per day, starting with the CollectedServiceImpl class. Once I finish this, I’ll move on to the next ones.
+        // Test null key
+        try {
+            callActivityService.defaultIntVal(map, "key2");
+            Assert.fail("Expected NullPointerException");
+        } catch (NullPointerException e) {
+            // Expected exception
+        }
+    }
 
-I’ve attached more details for your reference. Let me know if you need anything else or have additional suggestions!
+    @Test
+    public void testRenderCustomerSelection() {
+        // Prepare test data
+        List<Map<String, String>> customers = new ArrayList<>();
+        Map<String, String> customer = new HashMap<>();
+        customer.put("customerId", "12345");
+        customers.add(customer);
 
-Best regards,
-Kaushik
+        String productType = "Savings Staff";
+        String accountNumber = "12345678";
+        String currencyCode = "USD";
+        String callActivityNo = "CALL123";
+        LoginBean loginBean = new LoginBean();
 
+        SectionDataResponse mockResponse = new SectionDataResponse();
+        Mockito.when(cemsUiIntegrator.integrate(Mockito.anyMap(), Mockito.anyMap(), Mockito.any(LoginBean.class)))
+                .thenReturn(mockResponse);
+
+        // Execute
+        SectionDataResponse response = callActivityService.renderCustomerSelection(customers, productType, accountNumber, currencyCode, callActivityNo, loginBean);
+
+        // Verify
+        Assert.assertNotNull(response);
+        Mockito.verify(cemsUiIntegrator, Mockito.times(1)).integrate(Mockito.anyMap(), Mockito.anyMap(), Mockito.any(LoginBean.class));
+    }
+
+    @Test
+    public void testLoadRecentCallSection() throws Exception {
+        // Prepare test data
+        String owner = "Owner1";
+        String countryCode3 = "USA";
+
+        List<CallActivity> callActivities = new ArrayList<>();
+        CallActivity call = new CallActivity();
+        call.setRefNoDesc("REF001");
+        call.setCustId("12345");
+        call.setCustName("John Doe");
+        call.setGeneral(false);
+        callActivities.add(call);
+
+        Mockito.when(callActivityAction.getCallActivityByOwnerWithMaxResults(Mockito.eq(owner), Mockito.eq(countryCode3), Mockito.anyInt()))
+                .thenReturn(callActivities);
+
+        // Execute
+        Map<String, Object> result = callActivityService.loadRecentCallSection(owner, countryCode3);
+
+        // Verify
+        Assert.assertNotNull(result);
+        Assert.assertEquals("Recent Call Activity", result.get("title"));
+        List<Map<String, Object>> recentCallActivityList = (List<Map<String, Object>>) result.get("recentCallActivityList");
+        Assert.assertEquals(1, recentCallActivityList.size());
+        Assert.assertEquals("REF001", recentCallActivityList.get(0).get("id"));
+
+        Mockito.verify(callActivityAction, Mockito.times(1))
+                .getCallActivityByOwnerWithMaxResults(Mockito.eq(owner), Mockito.eq(countryCode3), Mockito.anyInt());
+    }
+}
