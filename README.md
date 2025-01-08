@@ -5,15 +5,22 @@ public class CallActivityServiceImplTest {
     private CallActivityServiceImpl callActivityService;
 
     @Mock
-    private CemsUiIntegrator cemsUiIntegrator;
+    private GridMetaDataAction gridMetaDataAction;
 
     @Mock
     private CallActivityAction callActivityAction;
 
     @Mock
+    private CVGridDataAction cvGridDataAction;
+
+    @Mock
     private Logger logger;
 
-    private Map<String, Object> responseValues;
+    @Mock
+    private LoginBean loginBean;
+
+    @Mock
+    private CallActivity callActivity;
 
     @Before
     public void setup() {
@@ -21,79 +28,53 @@ public class CallActivityServiceImplTest {
     }
 
     @Test
-    public void testDefaultIntVal() {
-        // Prepare test data
-        Map<String, Object> map = new HashMap<>();
-        map.put("key1", 5);
-        map.put("key2", null);
-
-        // Test valid key
-        int result = callActivityService.defaultIntVal(map, "key1");
-        Assert.assertEquals(5, result);
-
-        // Test null key
-        try {
-            callActivityService.defaultIntVal(map, "key2");
-            Assert.fail("Expected NullPointerException");
-        } catch (NullPointerException e) {
-            // Expected exception
-        }
-    }
-
-    @Test
-    public void testRenderCustomerSelection() {
-        // Prepare test data
-        List<Map<String, String>> customers = new ArrayList<>();
-        Map<String, String> customer = new HashMap<>();
-        customer.put("customerId", "12345");
-        customers.add(customer);
-
-        String productType = "Savings Staff";
-        String accountNumber = "12345678";
-        String currencyCode = "USD";
-        String callActivityNo = "CALL123";
-        LoginBean loginBean = new LoginBean();
-
-        SectionDataResponse mockResponse = new SectionDataResponse();
-        Mockito.when(cemsUiIntegrator.integrate(Mockito.anyMap(), Mockito.anyMap(), Mockito.any(LoginBean.class)))
-                .thenReturn(mockResponse);
-
-        // Execute
-        SectionDataResponse response = callActivityService.renderCustomerSelection(customers, productType, accountNumber, currencyCode, callActivityNo, loginBean);
-
-        // Verify
-        Assert.assertNotNull(response);
-        Mockito.verify(cemsUiIntegrator, Mockito.times(1)).integrate(Mockito.anyMap(), Mockito.anyMap(), Mockito.any(LoginBean.class));
-    }
-
-    @Test
-    public void testLoadRecentCallSection() throws Exception {
-        // Prepare test data
-        String owner = "Owner1";
+    public void testLoadPendingCallSection() throws Exception {
+        // Mocking input parameters
         String countryCode3 = "USA";
+        String owner = "JohnDoe";
+        int pageNo = 1;
+        int totalRecords = -1;
 
+        // Mocking behavior of GridMetaDataAction
+        GridMetaData mockGridMetaData = new GridMetaData();
+        mockGridMetaData.setPageSize(10);
+        when(gridMetaDataAction.getGridMetaDataBySectionId(anyList(), eq(loginBean)))
+                .thenReturn(Collections.singletonList(mockGridMetaData));
+
+        // Mocking behavior of CallActivityAction for total records count
+        when(callActivityAction.getCallActivityByOwnerAndCallStatusCount(eq(owner), anyString(), eq(countryCode3)))
+                .thenReturn(100L);
+
+        // Mocking behavior of CallActivityAction for call activities
         List<CallActivity> callActivities = new ArrayList<>();
-        CallActivity call = new CallActivity();
-        call.setRefNoDesc("REF001");
-        call.setCustId("12345");
-        call.setCustName("John Doe");
-        call.setGeneral(false);
-        callActivities.add(call);
+        CallActivity mockCallActivity = new CallActivity();
+        mockCallActivity.setCustId("12345");
+        mockCallActivity.setRefNoDesc("REF123");
+        mockCallActivity.setNotes("Sample Notes");
+        mockCallActivity.setCallProductType("Product1");
+        mockCallActivity.setCallPrimaryType("PrimaryType");
+        mockCallActivity.setCallSecondaryType("SecondaryType");
+        mockCallActivity.setVerificationTypeDesc("VerificationType");
+        mockCallActivity.setTransferred(true);
+        callActivities.add(mockCallActivity);
 
-        Mockito.when(callActivityAction.getCallActivityByOwnerWithMaxResults(Mockito.eq(owner), Mockito.eq(countryCode3), Mockito.anyInt()))
+        when(callActivityAction.getCallActivityByOwnerAndCallStatus(eq(owner), anyString(), eq(countryCode3), eq(pageNo), eq(10)))
                 .thenReturn(callActivities);
 
-        // Execute
-        Map<String, Object> result = callActivityService.loadRecentCallSection(owner, countryCode3);
+        // Mocking behavior of CVGridDataAction
+        SectionDataResponse mockResponse = new SectionDataResponse();
+        when(cvGridDataAction.getSectionData(any(), anyList(), eq(pageNo), eq(100), eq(loginBean)))
+                .thenReturn(mockResponse);
 
-        // Verify
-        Assert.assertNotNull(result);
-        Assert.assertEquals("Recent Call Activity", result.get("title"));
-        List<Map<String, Object>> recentCallActivityList = (List<Map<String, Object>>) result.get("recentCallActivityList");
-        Assert.assertEquals(1, recentCallActivityList.size());
-        Assert.assertEquals("REF001", recentCallActivityList.get(0).get("id"));
+        // Call the method under test
+        SectionDataResponse result = callActivityService.loadPendingCallSection(countryCode3, owner, loginBean, pageNo, totalRecords);
 
-        Mockito.verify(callActivityAction, Mockito.times(1))
-                .getCallActivityByOwnerWithMaxResults(Mockito.eq(owner), Mockito.eq(countryCode3), Mockito.anyInt());
+        // Assertions
+        assertNotNull(result);
+        verify(logger).info("Loading pending calls for country code: {} and owner: {}", countryCode3, owner);
+        verify(gridMetaDataAction).getGridMetaDataBySectionId(anyList(), eq(loginBean));
+        verify(callActivityAction).getCallActivityByOwnerAndCallStatusCount(eq(owner), anyString(), eq(countryCode3));
+        verify(callActivityAction).getCallActivityByOwnerAndCallStatus(eq(owner), anyString(), eq(countryCode3), eq(pageNo), eq(10));
+        verify(cvGridDataAction).getSectionData(any(), anyList(), eq(pageNo), eq(100), eq(loginBean));
     }
 }
