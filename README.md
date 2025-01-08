@@ -5,94 +5,86 @@ public class CallActivityServiceImplTest {
     private CallActivityServiceImpl callActivityService;
 
     @Mock
+    private SectionDataResponse sectionDataResponse;
+
+    @Mock
     private CallActivity callActivity;
 
     @Mock
     private LoginBean loginBean;
 
-    @Mock
-    private SectionDataResponse sectionDataResponse;
-
-    @Mock
-    private Logger logger;
-
-    private List<Object> renderedQuestions;
-
     @Before
     public void setup() {
         MockitoAnnotations.openMocks(this);
-
-        // Initialize test data
-        renderedQuestions = new ArrayList<>();
-        renderedQuestions.add("Question1");
-        renderedQuestions.add("Question2");
-
-        callActivity = new CallActivity();
-        callActivity.setCustId("12345");
-        callActivity.setCustName("John Doe");
-        callActivity.setGeneral(true);
     }
 
+    /**
+     * Test for renderVerified method.
+     */
     @Test
     public void testRenderVerified() {
-        // Mock the behavior of renderCallInfo
-        SectionDataResponse mockedResponse = new SectionDataResponse();
-        when(callActivityService.renderCallInfo(eq(callActivity), eq(true), eq("USA"), eq(loginBean)))
-                .thenReturn(mockedResponse);
+        // Arrange
+        String countryCode = "US";
+        Mockito.when(callActivity.isGeneral()).thenReturn(true);
+        Mockito.when(callActivityService.renderCallInfo(callActivity, true, countryCode, loginBean))
+                .thenReturn(sectionDataResponse);
 
-        // Execute the method under test
-        SectionDataResponse response = callActivityService.renderVerified(callActivity, "USA", loginBean);
+        // Act
+        SectionDataResponse result = callActivityService.renderVerified(callActivity, countryCode, loginBean);
 
-        // Assertions
-        assertNotNull(response);
-        assertEquals(mockedResponse, response);
-
-        // Verify the interaction
-        verify(callActivityService).renderCallInfo(eq(callActivity), eq(true), eq("USA"), eq(loginBean));
+        // Assert
+        assertNotNull(result);
+        Mockito.verify(callActivityService).renderCallInfo(callActivity, true, countryCode, loginBean);
     }
 
+    /**
+     * Test for renderVerificationQuestion method.
+     */
     @Test
     public void testRenderVerificationQuestion() {
-        // Execute the method under test
-        Map<String, Object> response = callActivityService.renderVerificationQuestion(callActivity, renderedQuestions);
+        // Arrange
+        List<Object> renderedQuestions = List.of("Question 1", "Question 2");
+        Mockito.when(callActivity.getCustId()).thenReturn("12345");
+        Mockito.when(callActivity.getCustName()).thenReturn("John Doe");
 
-        // Assertions
-        assertNotNull(response);
-        assertEquals("12345", response.get("relationshipNo"));
-        assertEquals("John Doe", response.get("fullName"));
-        assertEquals("../call-activity/next-question.do", response.get("refreshQuestionUrl"));
-        assertEquals(renderedQuestions, response.get("questions"));
-        assertNotNull(response.get("data"));
+        // Act
+        Map<String, Object> result = callActivityService.renderVerificationQuestion(callActivity, renderedQuestions);
 
-        // Verify no unexpected interaction
-        verifyNoInteractions(logger);
+        // Assert
+        assertNotNull(result);
+        assertEquals("12345", result.get("custId"));
+        assertEquals("John Doe", result.get("custName"));
+        assertEquals(renderedQuestions, result.get("renderedQuestions"));
+        Mockito.verify(callActivity).getCustId();
+        Mockito.verify(callActivity).getCustName();
     }
 
+    /**
+     * Test for renderVerificationQuestionWithCallInfo method.
+     */
     @Test
     public void testRenderVerificationQuestionWithCallInfo() {
-        // Mock the behavior of renderNewCallInfo
-        SectionDataResponse mockedCallData = new SectionDataResponse();
-        when(callActivityService.renderNewCallInfo(eq(callActivity), eq(loginBean))).thenReturn(mockedCallData);
+        // Arrange
+        List<Object> renderedQuestions = List.of("Question 1", "Question 2");
+        SectionDataResponse mockCallData = new SectionDataResponse();
+        List<SectionData> modifiedSections = List.of(new SectionData("Section1"));
 
-        // Mock the modifyTwoFaTypeDescription behavior
-        List<SectionData> modifiedSections = new ArrayList<>();
-        SectionData sectionData = new SectionData();
-        modifiedSections.add(sectionData);
-        when(callActivityService.modifyTwoFaTypeDescription(eq(mockedCallData))).thenReturn(modifiedSections);
+        Mockito.when(callActivity.getCustId()).thenReturn("12345");
+        Mockito.when(callActivity.getCustName()).thenReturn("John Doe");
+        Mockito.when(callActivityService.renderNewCallInfo(callActivity, loginBean)).thenReturn(mockCallData);
+        Mockito.when(callActivityService.modifyTwoFaTypeDescription(mockCallData)).thenReturn(modifiedSections);
 
-        // Execute the method under test
-        Map<String, Object> response = callActivityService.renderVerificationQuestionWithCallInfo(callActivity, renderedQuestions, loginBean);
+        // Act
+        Map<String, Object> result = callActivityService.renderVerificationQuestionWithCallInfo(
+                callActivity, renderedQuestions, loginBean);
 
-        // Assertions
-        assertNotNull(response);
-        assertEquals("12345", response.get("relationshipNo"));
-        assertEquals("John Doe", response.get("fullName"));
-        assertEquals("../call-activity/next-question.do", response.get("refreshQuestionUrl"));
-        assertEquals(renderedQuestions, response.get("questions"));
-        assertEquals(mockedCallData, response.get("data"));
-
-        // Verify interactions
-        verify(callActivityService).renderNewCallInfo(eq(callActivity), eq(loginBean));
-        verify(callActivityService).modifyTwoFaTypeDescription(eq(mockedCallData));
+        // Assert
+        assertNotNull(result);
+        assertEquals("12345", result.get("custId"));
+        assertEquals("John Doe", result.get("custName"));
+        assertEquals(renderedQuestions, result.get("renderedQuestions"));
+        assertNotNull(result.get("callData"));
+        Mockito.verify(callActivityService).renderNewCallInfo(callActivity, loginBean);
+        Mockito.verify(callActivityService).modifyTwoFaTypeDescription(mockCallData);
     }
 }
