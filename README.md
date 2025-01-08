@@ -43,7 +43,10 @@ public class CallActivityServiceImplTest {
     @Test
     public void testRenderVerificationQuestion() {
         // Arrange
-        List<Object> renderedQuestions = List.of("Question 1", "Question 2");
+        List<Object> renderedQuestions = new ArrayList<>();
+        renderedQuestions.add("Question 1");
+        renderedQuestions.add("Question 2");
+
         Mockito.when(callActivity.getCustId()).thenReturn("12345");
         Mockito.when(callActivity.getCustName()).thenReturn("John Doe");
 
@@ -65,9 +68,13 @@ public class CallActivityServiceImplTest {
     @Test
     public void testRenderVerificationQuestionWithCallInfo() {
         // Arrange
-        List<Object> renderedQuestions = List.of("Question 1", "Question 2");
+        List<Object> renderedQuestions = new ArrayList<>();
+        renderedQuestions.add("Question 1");
+        renderedQuestions.add("Question 2");
+
         SectionDataResponse mockCallData = new SectionDataResponse();
-        List<SectionData> modifiedSections = List.of(new SectionData("Section1"));
+        List<SectionData> modifiedSections = new ArrayList<>();
+        modifiedSections.add(new SectionData("Section1"));
 
         Mockito.when(callActivity.getCustId()).thenReturn("12345");
         Mockito.when(callActivity.getCustName()).thenReturn("John Doe");
