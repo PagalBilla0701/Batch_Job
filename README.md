@@ -1,52 +1,81 @@
-@Before
-public void setup() {
-    MockitoAnnotations.openMocks(this);
+@RunWith(MockitoJUnitRunner.class)
+public class CallActivityServiceImplTest {
 
-    // Mocking necessary objects
-    loginBean = new LoginBean();
+    @InjectMocks
+    private CallActivityServiceImpl callActivityService;
 
-    // Mocking dependencies
-    GridMetaData mockGridMetaData = new GridMetaData();
-    mockGridMetaData.setPageSize(10);
+    @Mock
+    private GridMetaDataAction gridMetaDataAction;
 
-    when(gridMetaDataAction.getGridMetaDataBySectionId(anyList(), eq(loginBean)))
-            .thenReturn(Collections.singletonList(mockGridMetaData));
+    @Mock
+    private CallActivityAction callActivityAction;
 
-    when(callActivityAction.getCallActivityByOwnerAndCallStatusCount(anyString(), anyString(), anyString()))
-            .thenReturn(100L);
+    @Mock
+    private CVGridDataAction cvGridDataAction;
 
-    CallActivity mockCallActivity = new CallActivity();
-    mockCallActivity.setCustId("12345");
-    mockCallActivity.setRefNoDesc("REF123");
-    mockCallActivity.setNotes("Sample Notes");
-    mockCallActivity.setCallProductType("Product1");
-    mockCallActivity.setCallPrimaryType("PrimaryType");
-    mockCallActivity.setCallSecondaryType("SecondaryType");
-    mockCallActivity.setVerificationTypeDesc("VerificationType");
-    mockCallActivity.setTransferred(true);
+    @Mock
+    private Logger logger;
 
-    when(callActivityAction.getCallActivityByOwnerAndCallStatus(anyString(), anyString(), anyString(), anyInt(), anyInt()))
-            .thenReturn(Collections.singletonList(mockCallActivity));
+    @Mock
+    private LoginBean loginBean;
 
-    when(cvGridDataAction.getSectionData(any(), anyList(), anyInt(), anyInt(), eq(loginBean)))
-            .thenReturn(new SectionDataResponse());
-}
+    private List<Long> sectionIDs;
+    private List<CallActivity> callActivities;
+    private GridMetaData gridMetaData;
 
-@Test
-public void testLoadPendingCallSection() throws Exception {
-    String countryCode3 = "USA";
-    String owner = "JohnDoe";
-    int pageNo = 1;
-    int totalRecords = -1;
+    @Before
+    public void setup() {
+        MockitoAnnotations.openMocks(this);
 
-    // Execute the method under test
-    SectionDataResponse result = callActivityService.loadPendingCallSection(countryCode3, owner, loginBean, pageNo, totalRecords);
+        // Initialize test data
+        sectionIDs = new ArrayList<>();
+        sectionIDs.add(16012L);
 
-    // Assertions
-    assertNotNull(result);
-    verify(logger).info("Loading pending calls for country code: {} and owner: {}", countryCode3, owner);
-    verify(gridMetaDataAction).getGridMetaDataBySectionId(anyList(), eq(loginBean));
-    verify(callActivityAction).getCallActivityByOwnerAndCallStatusCount(eq(owner), anyString(), eq(countryCode3));
-    verify(callActivityAction).getCallActivityByOwnerAndCallStatus(eq(owner), anyString(), eq(countryCode3), eq(pageNo), anyInt());
-    verify(cvGridDataAction).getSectionData(any(), anyList(), eq(pageNo), anyInt(), eq(loginBean));
+        gridMetaData = new GridMetaData();
+        gridMetaData.setPageSize(10);
+
+        callActivities = new ArrayList<>();
+        CallActivity callActivity = new CallActivity();
+        callActivity.setCustId("12345");
+        callActivity.setRefNoDesc("REF123");
+        callActivity.setNotes("Sample Notes");
+        callActivity.setCallProductType("Product1");
+        callActivity.setCallPrimaryType("PrimaryType");
+        callActivity.setCallSecondaryType("SecondaryType");
+        callActivity.setVerificationTypeDesc("VerificationType");
+        callActivity.setTransferred(true);
+        callActivities.add(callActivity);
+    }
+
+    @Test
+    public void testLoadPendingCallSection() throws Exception {
+        // Mock behaviors
+        when(gridMetaDataAction.getGridMetaDataBySectionId(eq(sectionIDs), eq(loginBean)))
+                .thenReturn(Collections.singletonList(gridMetaData));
+        when(callActivityAction.getCallActivityByOwnerAndCallStatusCount(anyString(), eq("PENDING_CALL_STATUS"), anyString()))
+                .thenReturn(100L);
+        when(callActivityAction.getCallActivityByOwnerAndCallStatus(anyString(), eq("PENDING_CALL_STATUS"), anyString(), anyInt(), anyInt()))
+                .thenReturn(callActivities);
+        when(cvGridDataAction.getSectionData(any(SectionDataRequest.class), anyList(), anyInt(), anyInt(), eq(loginBean)))
+                .thenReturn(new SectionDataResponse());
+
+        // Input data
+        String countryCode3 = "USA";
+        String owner = "JohnDoe";
+        int pageNo = 1;
+        int totalRecords = -1;
+
+        // Execute the method under test
+        SectionDataResponse result = callActivityService.loadPendingCallSection(countryCode3, owner, loginBean, pageNo, totalRecords);
+
+        // Assertions
+        assertNotNull(result);
+
+        // Verify interactions
+        verify(logger).info("Loading pending calls for country code: {} and owner: {}", countryCode3, owner);
+        verify(gridMetaDataAction).getGridMetaDataBySectionId(eq(sectionIDs), eq(loginBean));
+        verify(callActivityAction).getCallActivityByOwnerAndCallStatusCount(eq(owner), eq("PENDING_CALL_STATUS"), eq(countryCode3));
+        verify(callActivityAction).getCallActivityByOwnerAndCallStatus(eq(owner), eq("PENDING_CALL_STATUS"), eq(countryCode3), eq(pageNo), eq(gridMetaData.getPageSize()));
+        verify(cvGridDataAction).getSectionData(any(SectionDataRequest.class), anyList(), eq(pageNo), anyInt(), eq(loginBean));
+    }
 }
