@@ -1,38 +1,94 @@
-@Test
-public void testUpdateCallDispositionStatus_Success() throws Exception {
-    // Mocking ParamRepository response
-    Param param = new Param("IVR03");
-    Mockito.when(paramRepository.getParam(Mockito.any(Param.class)))
-            .thenReturn(new Param("IVR03", new String[]{null, null, null, null, null, null, "https://example.com/api", "/update"}));
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.ResponseHandler;
+import org.apache.http.client.methods.HttpPatch;
+import org.apache.http.impl.client.BasicResponseHandler;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicStatusLine;
+import org.apache.http.protocol.HTTP;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.util.EntityUtils;
+import org.apache.http.message.BasicHttpResponse;
+import static org.mockito.Mockito.*;
 
-    // Mocking CallActivity
-    CallActivity call = new CallActivity();
-    call.setUserId("testUser");
-    call.setConnectionId("connection123");
-    call.setCallPrimaryType("primaryType");
-    call.setCallSecondaryType("secondaryType");
-    call.setCallDriver("callDriver");
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
-    // Mocking CloseableHttpResponse
-    CloseableHttpResponse mockResponse = Mockito.mock(CloseableHttpResponse.class);
-    StatusLine statusLine = Mockito.mock(StatusLine.class);
-    Mockito.when(statusLine.getStatusCode()).thenReturn(200);
-    Mockito.when(mockResponse.getStatusLine()).thenReturn(statusLine);
+import static org.junit.Assert.*;
 
-    // Mocking HttpClient
-    CloseableHttpClient httpClientMock = Mockito.mock(CloseableHttpClient.class);
-    Mockito.when(httpClientMock.execute(Mockito.any(HttpPatch.class))).thenReturn(mockResponse);
+public class CallDispositionServiceTest {
 
-    // Replace the actual HttpClient with the mock
-    callActivityService.setHttpClient(httpClientMock);
+    private CallDispositionService callDispositionService;
 
-    // Execute the method
-    callActivityService.updateCallDispositionStatus("US", call);
+    @Mock
+    private ParamRepository paramRepository;
 
-    // Verify interactions
-    Mockito.verify(paramRepository, Mockito.times(1)).getParam(Mockito.any(Param.class));
-    Mockito.verify(httpClientMock, Mockito.times(1)).execute(Mockito.any(HttpPatch.class));
+    @Mock
+    private HttpClient httpClient;
 
-    // Assert behavior
-    Assert.assertTrue(true); // Placeholder for additional assertions if required
+    @Before
+    public void setup() {
+        MockitoAnnotations.initMocks(this);
+        callDispositionService = new CallDispositionService(paramRepository, httpClient);
+    }
+
+    @Test
+    public void testUpdateCallDispositionStatus_SuccessfulResponse() throws Exception {
+        String countryCode = "US";
+        CallActivity call = new CallActivity();
+        call.setConnectionId("12345");
+        call.setCallPrimaryType("Primary");
+        call.setCallSecondaryType("Secondary");
+        call.setCallDriver("Driver");
+        call.setUserId("user123");
+
+        // Mock ParamRepository behavior
+        Param param = new Param("IVR03");
+        Param resultParam = new Param();
+        resultParam.setData(new String[]{"", "", "", "", "", "", "http://api.test.com", "/update"});
+        when(paramRepository.getParam(param)).thenReturn(resultParam);
+
+        // Mock HttpClient behavior
+        HttpResponse mockResponse = mock(HttpResponse.class);
+        when(httpClient.execute(any(HttpPatch.class))).thenReturn(mockResponse);
+        when(mockResponse.getStatusLine().getStatusCode()).thenReturn(200);
+
+        // Mock response handler
+        ResponseHandler<String> handler = new BasicResponseHandler();
+        when(handler.handleResponse(mockResponse)).thenReturn("{ \"status\": \"success\" }");
+
+        callDispositionService.updateCallDispositionStatus(countryCode, call);
+
+        verify(httpClient, times(1)).execute(any(HttpPatch.class));
+    }
+
+    @Test(expected = Exception.class)
+    public void testUpdateCallDispositionStatus_ErrorResponse() throws Exception {
+        String countryCode = "US";
+        CallActivity call = new CallActivity();
+        call.setConnectionId("12345");
+        call.setCallPrimaryType("Primary");
+        call.setCallSecondaryType("Secondary");
+        call.setCallDriver("Driver");
+        call.setUserId("user123");
+
+        // Mock ParamRepository behavior
+        Param param = new Param("IVR03");
+        Param resultParam = new Param();
+        resultParam.setData(new String[]{"", "", "", "", "", "", "http://api.test.com", "/update"});
+        when(paramRepository.getParam(param)).thenReturn(resultParam);
+
+        // Mock HttpClient behavior
+        HttpResponse mockResponse = mock(HttpResponse.class);
+        when(httpClient.execute(any(HttpPatch.class))).thenReturn(mockResponse);
+        when(mockResponse.getStatusLine().getStatusCode()).thenReturn(500);
+
+        callDispositionService.updateCallDispositionStatus(countryCode, call);
+    }
 }
