@@ -1,27 +1,76 @@
-import static org.junit.Assert.assertEquals;
-
-import org.junit.Test;
-
+@RunWith(MockitoJUnitRunner.class)
 public class CallActivityServiceImplTest {
 
-    private CallActivityServiceImpl callActivityService = new CallActivityServiceImpl();
+    @InjectMocks
+    private CallActivityServiceImpl callActivityService;
+
+    @Mock
+    private Logger logger;
+
+    @Mock
+    private ParamRepository paramRepository;
+
+    @Mock
+    private HttpClient httpClient;
+
+    @Mock
+    private HttpResponse httpResponse;
+
+    private CallActivity callActivity;
+
+    @Before
+    public void setup() {
+        MockitoAnnotations.openMocks(this);
+
+        callActivity = new CallActivity();
+        callActivity.setUserId("testUserId");
+        callActivity.setConnectionId("12345");
+        callActivity.setCallPrimaryType("PrimaryType");
+        callActivity.setCallSecondaryType("SecondaryType");
+        callActivity.setCallDriver("DriverType");
+    }
 
     @Test
-    public void testGetAuthenticationType() {
-        // Test case 1: Multiple authentication types separated by '|'
-        String auth1 = "AUTH_A|AUTH_B";
-        assertEquals("AUTH_A", callActivityService.getAuthenticationType(auth1));
+    public void testUpdateCallDispositionStatus_success() throws Exception {
+        String countryCode = "IN";
+        String url = "http://example.com/update";
 
-        // Test case 2: Single authentication type
-        String auth2 = "AUTH_A";
-        assertEquals("AUTH_A", callActivityService.getAuthenticationType(auth2));
+        // Mocking ParamRepository behavior
+        Param param = new Param("IVR03");
+        Param results = Mockito.mock(Param.class);
+        Mockito.when(results.getData()).thenReturn(new String[] { "", "", "", "", "", "", url, "" });
+        Mockito.when(paramRepository.getParam(param)).thenReturn(results);
 
-        // Test case 3: Empty string as input
-        String auth3 = "";
-        assertEquals("", callActivityService.getAuthenticationType(auth3));
+        // Mocking HttpResponse behavior
+        Mockito.when(httpResponse.getStatusLine()).thenReturn(Mockito.mock(StatusLine.class));
+        Mockito.when(httpResponse.getStatusLine().getStatusCode()).thenReturn(200);
+        Mockito.when(httpClient.execute(Mockito.any(HttpPatch.class))).thenReturn(httpResponse);
 
-        // Test case 4: String without '|'
-        String auth4 = "SINGLE_AUTH";
-        assertEquals("SINGLE_AUTH", callActivityService.getAuthenticationType(auth4));
+        // Run the method
+        callActivityService.updateCallDispositionStatus(countryCode, callActivity);
+
+        // Verify interactions
+        Mockito.verify(logger).info(Mockito.contains("Service URL"), Mockito.eq(url));
+        Mockito.verify(logger).info(Mockito.contains("The resposnse received in updating Call Disposition status"));
+    }
+
+    @Test(expected = Exception.class)
+    public void testUpdateCallDispositionStatus_failure() throws Exception {
+        String countryCode = "IN";
+        String url = "http://example.com/update";
+
+        // Mocking ParamRepository behavior
+        Param param = new Param("IVR03");
+        Param results = Mockito.mock(Param.class);
+        Mockito.when(results.getData()).thenReturn(new String[] { "", "", "", "", "", "", url, "" });
+        Mockito.when(paramRepository.getParam(param)).thenReturn(results);
+
+        // Mocking HttpResponse behavior
+        Mockito.when(httpResponse.getStatusLine()).thenReturn(Mockito.mock(StatusLine.class));
+        Mockito.when(httpResponse.getStatusLine().getStatusCode()).thenReturn(500);
+        Mockito.when(httpClient.execute(Mockito.any(HttpPatch.class))).thenReturn(httpResponse);
+
+        // Run the method
+        callActivityService.updateCallDispositionStatus(countryCode, callActivity);
     }
 }
