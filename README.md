@@ -1,60 +1,23 @@
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+@Test
+public void testRenderVerified() {
+    // Arrange
+    callActivity = mock(CallActivity.class); // Ensure CallActivity is mocked
+    when(callActivity.isGeneral()).thenReturn(true);
 
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+    SectionDataResponse mockResponse = new SectionDataResponse();
 
-public class CallActivityServiceImplTest {
+    // Spy on the service to mock renderCallInfo method
+    CallActivityServiceImpl spyService = spy(callActivityService);
+    doReturn(mockResponse).when(spyService).renderCallInfo(callActivity, true, COUNTRY_CODE, loginBean);
 
-    @InjectMocks
-    private CallActivityServiceImpl callActivityService;
+    // Act
+    SectionDataResponse response = spyService.renderVerified(callActivity, COUNTRY_CODE, loginBean);
 
-    @Mock
-    private SectionDataResponse sectionDataResponse;
+    // Assert
+    assertNotNull(response);
+    assertEquals(mockResponse, response);
 
-    @Mock
-    private CallActivity callActivity;
-
-    @Mock
-    private LoginBean loginBean;
-
-    private static final String COUNTRY_CODE = "IN";
-
-    @Before
-    public void setup() {
-        MockitoAnnotations.openMocks(this);
-        // Initialize mock CallActivity
-        callActivity = new CallActivity();
-        callActivity.setCustId("12345");
-        callActivity.setOneFa("1FA_Example");
-        callActivity.setTwoFa("2FA_Example");
-        callActivity.setAvailableAuth("AUTH_A | AUTH_B");
-        callActivity.setFailedAuthOne("AUTH_C");
-        callActivity.setFailedAuthTwo("AUTH_D");
-    }
-
-    @Test
-    public void testRenderVerified() {
-        // Arrange
-        when(callActivity.isGeneral()).thenReturn(true);
-        SectionDataResponse mockResponse = new SectionDataResponse();
-
-        // Spy on the service to mock renderCallInfo method
-        CallActivityServiceImpl spyService = spy(callActivityService);
-        doReturn(mockResponse).when(spyService).renderCallInfo(callActivity, true, COUNTRY_CODE, loginBean);
-
-        // Act
-        SectionDataResponse response = spyService.renderVerified(callActivity, COUNTRY_CODE, loginBean);
-
-        // Assert
-        assertNotNull(response);
-        assertEquals(mockResponse, response);
-
-        // Verify interactions
-        verify(callActivity).isGeneral();
-        verify(spyService).renderCallInfo(callActivity, true, COUNTRY_CODE, loginBean);
-    }
+    // Verify interactions
+    verify(callActivity).isGeneral();
+    verify(spyService).renderCallInfo(callActivity, true, COUNTRY_CODE, loginBean);
 }
