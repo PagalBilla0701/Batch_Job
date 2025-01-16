@@ -1,94 +1,144 @@
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.ResponseHandler;
-import org.apache.http.client.methods.HttpPatch;
-import org.apache.http.impl.client.BasicResponseHandler;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicStatusLine;
-import org.apache.http.protocol.HTTP;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.util.EntityUtils;
-import org.apache.http.message.BasicHttpResponse;
-import static org.mockito.Mockito.*;
+@RunWith(MockitoJUnitRunner.class)
+public class CallActivityServiceImplTest {
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+    @InjectMocks
+    private CallActivityServiceImpl callActivityService;
 
-import static org.junit.Assert.*;
+    @Mock
+    private VerificationScriptProxy proxy;
 
-public class CallDispositionServiceTest {
+    @Mock
+    private VerificationScriptProxyIE IEProxy;
 
-    private CallDispositionService callDispositionService;
+    @Mock
+    private CallActivityAction callActivityAction;
 
     @Mock
     private ParamRepository paramRepository;
 
     @Mock
-    private HttpClient httpClient;
+    private Logger logger;
+
+    private CallActivity callActivity;
+    private LoginBean loginBean;
 
     @Before
     public void setup() {
-        MockitoAnnotations.initMocks(this);
-        callDispositionService = new CallDispositionService(paramRepository, httpClient);
+        MockitoAnnotations.openMocks(this);
+        callActivity = new CallActivity();
+        loginBean = new LoginBean();
+
+        // Initialize CallActivity fields
+        callActivity.setCustId("12345");
+        callActivity.setCustName("John Doe");
+        callActivity.setAccountNo("987654321");
     }
 
     @Test
-    public void testUpdateCallDispositionStatus_SuccessfulResponse() throws Exception {
-        String countryCode = "US";
-        CallActivity call = new CallActivity();
-        call.setConnectionId("12345");
-        call.setCallPrimaryType("Primary");
-        call.setCallSecondaryType("Secondary");
-        call.setCallDriver("Driver");
-        call.setUserId("user123");
+    public void testRenderVerified() {
+        // Mock behavior
+        when(callActivity.isGeneral()).thenReturn(true);
 
-        // Mock ParamRepository behavior
-        Param param = new Param("IVR03");
-        Param resultParam = new Param();
-        resultParam.setData(new String[]{"", "", "", "", "", "", "http://api.test.com", "/update"});
-        when(paramRepository.getParam(param)).thenReturn(resultParam);
+        // Call the method
+        SectionDataResponse response = callActivityService.renderVerified(callActivity, "IN", loginBean);
 
-        // Mock HttpClient behavior
-        HttpResponse mockResponse = mock(HttpResponse.class);
-        when(httpClient.execute(any(HttpPatch.class))).thenReturn(mockResponse);
-        when(mockResponse.getStatusLine().getStatusCode()).thenReturn(200);
-
-        // Mock response handler
-        ResponseHandler<String> handler = new BasicResponseHandler();
-        when(handler.handleResponse(mockResponse)).thenReturn("{ \"status\": \"success\" }");
-
-        callDispositionService.updateCallDispositionStatus(countryCode, call);
-
-        verify(httpClient, times(1)).execute(any(HttpPatch.class));
+        // Verify results
+        assertNotNull(response);
+        verify(callActivityAction, never()).updateCallActivity(callActivity);
     }
 
-    @Test(expected = Exception.class)
-    public void testUpdateCallDispositionStatus_ErrorResponse() throws Exception {
-        String countryCode = "US";
-        CallActivity call = new CallActivity();
-        call.setConnectionId("12345");
-        call.setCallPrimaryType("Primary");
-        call.setCallSecondaryType("Secondary");
-        call.setCallDriver("Driver");
-        call.setUserId("user123");
+    @Test
+    public void testRenderVerificationQuestion() {
+        List<Object> renderedQuestions = Arrays.asList("Question1", "Question2");
 
-        // Mock ParamRepository behavior
-        Param param = new Param("IVR03");
-        Param resultParam = new Param();
-        resultParam.setData(new String[]{"", "", "", "", "", "", "http://api.test.com", "/update"});
-        when(paramRepository.getParam(param)).thenReturn(resultParam);
+        // Call the method
+        Map response = callActivityService.renderVerificationQuestion(callActivity, renderedQuestions);
 
-        // Mock HttpClient behavior
-        HttpResponse mockResponse = mock(HttpResponse.class);
-        when(httpClient.execute(any(HttpPatch.class))).thenReturn(mockResponse);
-        when(mockResponse.getStatusLine().getStatusCode()).thenReturn(500);
+        // Verify results
+        assertNotNull(response);
+    }
 
-        callDispositionService.updateCallDispositionStatus(countryCode, call);
+    @Test
+    public void testWipeCallCustomerAccount() throws Exception {
+        // Call the method
+        SectionDataResponse response = callActivityService.wipeCallCustomerAccount(callActivity, "IN", loginBean);
+
+        // Verify results
+        assertNull(callActivity.getCustId());
+        assertNull(callActivity.getCustName());
+        assertNotNull(response);
+    }
+
+    @Test
+    public void testUpdateForceClosedStatus() throws Exception {
+        AppConfigItem appConfigItem = new AppConfigItem();
+        appConfigItem.setValue("5");
+        when(paramRepository.getApplicationConfig("callactivity", "forceCloseDurationInDays"))
+            .thenReturn(appConfigItem);
+
+        // Call the method
+        int updatedRecords = callActivityService.updateForceClosedStatus("IN");
+
+        // Verify results
+        assertEquals(0, updatedRecords);
+        verify(callActivityAction, times(1)).updateForceClosedStatus("IN", 5);
+    }
+
+    @Test
+    public void testAutoSavingNotes() throws Exception {
+        // Call the method
+        Map<String, Object> response = callActivityService.autoSavingNotes("Sample notes", "123", "IN");
+
+        // Verify results
+        assertNotNull(response);
+        assertEquals("SAVED", response.get("status"));
+    }
+
+    @Test(expected = CallActivityAutoSavingNotesException.class)
+    public void testAutoSavingNotesException() throws Exception {
+        doThrow(new Exception("Test Exception")).when(callActivityAction)
+            .updateAutoSavingNotes(anyString(), anyString(), anyString());
+
+        // Call the method
+        callActivityService.autoSavingNotes("Sample notes", "123", "IN");
+    }
+
+    @Test
+    public void testGetCustomerVerify() {
+        // Mock behavior
+        when(IEProxy.getAnswer("IN", "CUSTVERIFY", new String[]{"Customer", "12345", "IN"}))
+            .thenReturn(Boolean.TRUE);
+
+        // Call the method
+        Boolean isVerified = callActivityService.getCustomerVerify("IN", "12345");
+
+        // Verify results
+        assertTrue(isVerified);
+    }
+
+    @Test
+    public void testIsSoftTokenEnableForCountry() {
+        Param param = new Param();
+        param.setData(new String[]{"1"});
+        when(paramRepository.getParam(any())).thenReturn(param);
+
+        // Call the method
+        String result = callActivityService.isSoftTokenEnableForCountry("IN");
+
+        // Verify results
+        assertEquals("true", result);
+    }
+
+    @Test
+    public void testIsSoftTokenEnableForCountry_NotEnabled() {
+        Param param = new Param();
+        param.setData(new String[]{"0"});
+        when(paramRepository.getParam(any())).thenReturn(param);
+
+        // Call the method
+        String result = callActivityService.isSoftTokenEnableForCountry("IN");
+
+        // Verify results
+        assertEquals("false", result);
     }
 }
