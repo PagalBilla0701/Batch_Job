@@ -1,8 +1,11 @@
 @Test
 public void testLogJson() throws JsonProcessingException {
     // Arrange
-    Map<String, String> request = Map.of("key", "value");
-    Map<String, String> payload = Map.of("key", "value");
+    Map<String, String> request = new HashMap<>();
+    request.put("key", "value");
+
+    Map<String, String> payload = new HashMap<>();
+    payload.put("key", "value");
     
     when(mapper.writeValueAsString(request)).thenReturn("{\"key\":\"value\"}");
     when(mapper.writeValueAsString(payload)).thenReturn("{\"key\":\"value\"}");
