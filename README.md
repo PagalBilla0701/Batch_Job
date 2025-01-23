@@ -1,142 +1,164 @@
-@RunWith(MockitoJUnitRunner.class)
+Here's a sample JUnit 4 test class covering the methods in your S2SOpportunityServiceImpl class. These are examples of how to test these methods; you'll need to adjust them based on the specific functionality of each method and any dependencies.
+
+Prerequisites
+
+1. Include the necessary dependencies for JUnit 4 in your project.
+
+
+2. Use a mocking framework like Mockito for mocking dependencies.
+
+
+
+JUnit 4 Test Class
+
+import com.scb.cems.serviceImpl.S2SOpportunityServiceImpl;
+import com.scb.cems.data.repository.UserRepository;
+import com.scb.core.codeparam.repository.ParamRepository;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
 public class S2SOpportunityServiceImplTest {
 
     @InjectMocks
     private S2SOpportunityServiceImpl service;
 
     @Mock
-    private RestTemplate restTemplate;
+    private UserRepository userRepository;
 
     @Mock
     private ParamRepository paramRepository;
 
     @Mock
-    private CemsUtil cemsUtil;
+    private RestTemplate restTemplate;
 
-    @Mock
-    private List<HttpMessageConverter<?>> customMessageConverters;
-
-    @Mock
-    private OpportunityPitchEntityDataRepository optyPitchRepo;
-
-    @Mock
-    private Logger logger;
-
-    @Test
-    public void testManageLeadDataSuccess() throws Exception {
-        // Arrange
-        Map<String, Object> request = new HashMap<>();
-        request.put("headerData", "testHeader");
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        ResponseEntity<Map> responseEntity = new ResponseEntity<>(Collections.singletonMap("key", "value"), HttpStatus.OK);
-
-        Mockito.when(restTemplate.exchange(
-                Mockito.any(URI.class),
-                Mockito.eq(HttpMethod.POST),
-                Mockito.any(HttpEntity.class),
-                Mockito.eq(Map.class)
-        )).thenReturn(responseEntity);
-
-        // Act
-        Map<String, Object> result = service.manageLeadData(request, 1);
-
-        // Assert
-        Assert.assertNotNull(result);
-        Assert.assertEquals("value", result.get("key"));
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
     }
 
-    @Test(expected = Sales2ServiceRuntimeException.class)
-    public void testManageLeadDataFailure() throws Exception {
-        // Arrange
+    @Test
+    public void testManageLeadData() throws Exception {
+        // Mocking
         Map<String, Object> request = new HashMap<>();
-        request.put("headerData", "testHeader");
+        request.put("headerData", "headerValue");
+        String expectedUrl = "http://mocked-url";
+        when(restTemplate.postForEntity(eq(expectedUrl), any(), eq(Map.class)))
+                .thenReturn(ResponseEntity.ok(new HashMap<>()));
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        // Test
+        Map<String, Object> result = service.manageLeadData(request, 1);
 
-        ResponseEntity<Map> responseEntity = new ResponseEntity<>(Collections.emptyMap(), HttpStatus.BAD_REQUEST);
-
-        Mockito.when(restTemplate.exchange(
-                Mockito.any(URI.class),
-                Mockito.eq(HttpMethod.POST),
-                Mockito.any(HttpEntity.class),
-                Mockito.eq(Map.class)
-        )).thenReturn(responseEntity);
-
-        // Act
-        service.manageLeadData(request, 1);
+        // Assertions
+        assertNotNull(result);
+        verify(restTemplate, times(1)).postForEntity(eq(expectedUrl), any(), eq(Map.class));
     }
 
     @Test
     public void testGetSales2ServiceUrl() {
-        // Arrange
-        Param param = new Param("L9993");
-        param.setData(Collections.singletonList("http://mock-url"));
+        // Mocking
+        when(paramRepository.getParam(any())).thenReturn(null);
 
-        Mockito.when(paramRepository.getParam(Mockito.any(Param.class))).thenReturn(param);
+        // Test
+        String result = service.getSales2ServiceUrl(0);
 
-        // Act
-        String url = service.getSales2ServiceUrl(0);
-
-        // Assert
-        Assert.assertEquals("http://mock-url", url);
+        // Assertions
+        assertNotNull(result);
     }
 
     @Test
     public void testGetLMSPageSize() {
-        // Arrange
-        Param param = new Param("P0052");
-        param.setData(Arrays.asList("10", "20", "30"));
+        // Mocking
+        when(paramRepository.getParam(any())).thenReturn(null);
 
-        Mockito.when(paramRepository.getParam(Mockito.any(Param.class))).thenReturn(param);
+        // Test
+        Integer result = service.getLMSPageSize(0);
 
-        // Act
-        Integer pageSize = service.getLMSPageSize(1);
-
-        // Assert
-        Assert.assertEquals((Integer) 20, pageSize);
+        // Assertions
+        assertEquals(15, result.intValue());
     }
 
     @Test
     public void testGetUserChannel() {
-        // Arrange
-        Param param = new Param("P9992");
-        param.setData(Arrays.asList("S2SChannel", "NS2SChannel"));
+        // Mocking
+        when(paramRepository.getParam(any())).thenReturn(null);
 
-        Mockito.when(paramRepository.getParam(Mockito.any(Param.class))).thenReturn(param);
+        // Test
+        String result = service.getUserChannel("S2S");
 
-        // Act
-        String channel = service.getUserChannel("S2S");
-
-        // Assert
-        Assert.assertEquals("S2SChannel", channel);
+        // Assertions
+        assertNotNull(result);
     }
 
     @Test
     public void testGetHeaderString() throws IOException {
-        // Arrange
-        Map<String, String> header = Collections.singletonMap("key", "value");
+        // Test
+        String result = service.getHeaderString(new HashMap<>());
 
-        // Act
-        String headerString = S2SOpportunityServiceImpl.getHeaderString(header);
-
-        // Assert
-        Assert.assertEquals("{\"key\":\"value\"}", headerString);
+        // Assertions
+        assertNotNull(result);
     }
 
     @Test
     public void testStrSubstitutor() throws Exception {
-        // Arrange
-        String url = "http://mock-url?param1={value1}";
-        Map<String, Object> inputMap = Collections.singletonMap("value1", "test");
+        // Test
+        Map<String, Object> inputMap = new HashMap<>();
+        String result = service.strSubstitutor("http://example.com/{param}", inputMap);
 
-        // Act
-        String result = service.strSubstitutor(url, inputMap);
+        // Assertions
+        assertNotNull(result);
+    }
 
-        // Assert
-        Assert.assertEquals("http://mock-url?param1=test", result);
+    @Test
+    public void testLmsDataProcess() throws Exception {
+        // Mocking
+        Map<String, Object> request = new HashMap<>();
+        Map<String, Object> payload = new HashMap<>();
+        when(restTemplate.exchange(any(), any(), any(), eq(Map.class)))
+                .thenReturn(ResponseEntity.ok(new HashMap<>()));
+
+        // Test
+        Map<String, Object> result = service.lmsDataProcess(request, payload, "key");
+
+        // Assertions
+        assertNotNull(result);
     }
 }
+
+Explanation
+
+1. @InjectMocks and @Mock: Used for injecting mocks into the service and mocking dependencies.
+
+
+2. Mocked Dependencies: Dependencies like RestTemplate and ParamRepository are mocked to simulate their behavior without invoking real implementations.
+
+
+3. Individual Tests: Each method has a corresponding test that verifies its behavior using assertions like assertNotNull and assertEquals.
+
+
+
+Adjustments
+
+1. Update the URLs and input parameters to match your application's context.
+
+
+2. Add more detailed assertions to validate the output based on your use cases.
+
+
+3. Mock any additional dependencies or services that the methods rely on.
+
+
+
+Would you like me to include specific edge cases or additional methods?
+
