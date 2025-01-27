@@ -1,26 +1,78 @@
-@Test
-public void testGetButtons_OneFaVerified() throws Exception {
-    // Set up
-    callActivity.setOneFa("true");
-    callActivity.setId(new CallActivityId("IN")); // Example setup for ID and country code
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
 
-    Method getButtonsMethod = CallActivityServiceImpl.class.getDeclaredMethod("getButtons", CallActivity.class);
-    getButtonsMethod.setAccessible(true);
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-    try {
-        // Invoke the private method
-        @SuppressWarnings("unchecked")
-        Map<String, String> buttons = (Map<String, String>) getButtonsMethod.invoke(callActivityService, callActivity);
+import java.util.Map;
 
-        // Assertions
-        assertNotNull(buttons);
-        assertTrue(buttons.containsKey("twoPlusOne"));
+class ButtonServiceTest {
+
+    @InjectMocks
+    private ButtonService buttonService; // Assuming your method belongs to this service class
+
+    @Mock
+    private CallActivity callActivity;
+
+    @Test
+    void testGetButtons_withOneFaAndTwoFaVerified() {
+        MockitoAnnotations.openMocks(this);
+
+        // Mock callActivity behavior
+        CallActivity.Id callId = mock(CallActivity.Id.class);
+        when(callId.getCountryCode()).thenReturn("US");
+        when(callActivity.getId()).thenReturn(callId);
+        when(callActivity.isOneFaVerifed()).thenReturn(true);
+        when(callActivity.isTwoFaVerified()).thenReturn(true);
+        when(callActivity.getOneFa()).thenReturn("2+1");
+        when(callActivity.getTwoFa()).thenReturn("OTHER");
+
+        // Call the method under test
+        Map<String, String> buttons = buttonService.getButtons(callActivity);
+
+        // Verify the result
         assertEquals("Success", buttons.get("twoPlusOne"));
-    } catch (InvocationTargetException e) {
-        // Log and rethrow the actual exception
-        Throwable cause = e.getCause();
-        System.err.println("Error in getButtons method: " + cause.getMessage());
-        cause.printStackTrace();
-        throw e;
+        assertEquals("Success", buttons.get("OTHER"));
+    }
+
+    @Test
+    void testGetButtons_withOnlyOneFaVerified() {
+        MockitoAnnotations.openMocks(this);
+
+        // Mock callActivity behavior
+        CallActivity.Id callId = mock(CallActivity.Id.class);
+        when(callId.getCountryCode()).thenReturn("US");
+        when(callActivity.getId()).thenReturn(callId);
+        when(callActivity.isOneFaVerifed()).thenReturn(true);
+        when(callActivity.isTwoFaVerified()).thenReturn(false);
+        when(callActivity.getOneFa()).thenReturn("OTHER");
+
+        // Call the method under test
+        Map<String, String> buttons = buttonService.getButtons(callActivity);
+
+        // Verify the result
+        assertEquals("Success", buttons.get("OTHER"));
+        assertEquals(null, buttons.get("twoPlusOne")); // Should not be set
+    }
+
+    @Test
+    void testGetButtons_withNoFaVerified() {
+        MockitoAnnotations.openMocks(this);
+
+        // Mock callActivity behavior
+        CallActivity.Id callId = mock(CallActivity.Id.class);
+        when(callId.getCountryCode()).thenReturn("US");
+        when(callActivity.getId()).thenReturn(callId);
+        when(callActivity.isOneFaVerifed()).thenReturn(false);
+        when(callActivity.isTwoFaVerified()).thenReturn(false);
+
+        // Call the method under test
+        Map<String, String> buttons = buttonService.getButtons(callActivity);
+
+        // Verify the result
+        assertEquals(null, buttons.get("twoPlusOne")); // Should not be set
+        assertEquals(null, buttons.get("OTHER")); // Should not be set
     }
 }
