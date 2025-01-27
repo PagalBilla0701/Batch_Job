@@ -1,73 +1,26 @@
-Here are the corrected test methods based on your implementation:
-
-
----
-
-Corrected Test Method: OneFaVerified
-
 @Test
 public void testGetButtons_OneFaVerified() throws Exception {
     // Set up
     callActivity.setOneFa("true");
+    callActivity.setId(new CallActivityId("IN")); // Example setup for ID and country code
 
     Method getButtonsMethod = CallActivityServiceImpl.class.getDeclaredMethod("getButtons", CallActivity.class);
     getButtonsMethod.setAccessible(true);
 
-    // Invoke the private method
-    @SuppressWarnings("unchecked")
-    Map<String, String> buttons = (Map<String, String>) getButtonsMethod.invoke(callActivityService, callActivity);
+    try {
+        // Invoke the private method
+        @SuppressWarnings("unchecked")
+        Map<String, String> buttons = (Map<String, String>) getButtonsMethod.invoke(callActivityService, callActivity);
 
-    // Assertions
-    assertNotNull(buttons);
-    assertTrue(buttons.containsKey("twoPlusOne"));
-    assertEquals("Success", buttons.get("twoPlusOne"));
+        // Assertions
+        assertNotNull(buttons);
+        assertTrue(buttons.containsKey("twoPlusOne"));
+        assertEquals("Success", buttons.get("twoPlusOne"));
+    } catch (InvocationTargetException e) {
+        // Log and rethrow the actual exception
+        Throwable cause = e.getCause();
+        System.err.println("Error in getButtons method: " + cause.getMessage());
+        cause.printStackTrace();
+        throw e;
+    }
 }
-
-
----
-
-Corrected Test Method: NotOneFaVerified
-
-@Test
-public void testGetButtons_NotOneFaVerified() throws Exception {
-    // Set up
-    callActivity.setOneFa("false");
-
-    Method getButtonsMethod = CallActivityServiceImpl.class.getDeclaredMethod("getButtons", CallActivity.class);
-    getButtonsMethod.setAccessible(true);
-
-    // Invoke the private method
-    @SuppressWarnings("unchecked")
-    Map<String, String> buttons = (Map<String, String>) getButtonsMethod.invoke(callActivityService, callActivity);
-
-    // Assertions
-    assertNotNull(buttons);
-    assertTrue(buttons.containsKey("twoPlusOne"));
-    assertEquals("Enable", buttons.get("twoPlusOne"));
-}
-
-
----
-
-Key Fixes in the Test Methods:
-
-1. Correct Method Name: Fixed gets ButtonsMethod to getButtonsMethod for consistency.
-
-
-2. Proper Invocation: Ensured the invoke method calls the private getButtons method correctly.
-
-
-3. Correct Key Case: Used "twoPlusOne" consistently instead of "twoPlusone".
-
-
-4. Correct Expected Value:
-
-For OneFaVerified, "Success" is expected.
-
-For NotOneFaVerified, "Enable" is expected.
-
-
-
-
-Let me know if you need further clarification!
-
