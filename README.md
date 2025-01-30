@@ -4,19 +4,19 @@ public void testGetLMSEndPointeUrl() throws Exception {
     ParamRepository paramRepository = mock(ParamRepository.class);
     YourClass yourClass = new YourClass();
 
-    // Inject the mock into your class (use reflection if required)
+    // Inject the mock into your class using reflection
     java.lang.reflect.Field field = YourClass.class.getDeclaredField("paramRepository");
     field.setAccessible(true);
     field.set(yourClass, paramRepository);
 
-    // Mocking the behavior of ParamRepository
-    Param mockParam = new Param("URL17");
-    mockParam.setKeys(new String[]{"paramKey"}); // Ensure this doesn't cause issues
-
+    // Mocking the Param object
     Param mockResult = mock(Param.class);
+    when(mockResult.getKeys()).thenReturn(new String[]{"paramKey"}); // Mock keys directly
     when(mockResult.getData()).thenReturn(new String[]{
-        "GET", "http://example.com", "/path", "/to", "/resource", null, null, null, null, null, null
+        "GET", "http://example.com", "/path", "/to", "/resource", null, null, null
     });
+
+    // Mocking the behavior of paramRepository.getParam
     when(paramRepository.getParam(any(Param.class))).thenReturn(mockResult);
 
     // Use reflection to access the private method
@@ -30,5 +30,5 @@ public void testGetLMSEndPointeUrl() throws Exception {
     // Assertions
     assertNotNull(result);
     assertEquals("GET", result.get("httpMethod"));
-    assertEquals("http://example.com/path/to/resource", result.get("serviceUrl"));
+    assertEquals("http://example.com/path/to/resource", result.get("serviceUrl")); // Expected result
 }
