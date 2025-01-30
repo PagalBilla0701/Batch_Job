@@ -1,52 +1,63 @@
-package com.scb.cems.serviceImpl;
-
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
-
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
+import org.mockito.Mockito;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-class S2SOpportunityServiceImplTest {
+import static org.junit.jupiter.api.Assertions.*;
 
-    @Mock
-    private OptyPitchRepo optyPitchRepo;
+class PrivateMethodTest {
 
-    @InjectMocks
-    private S2SOpportunityServiceImpl opportunityService;
+    @Test
+    void testConvertJsonToString() throws Exception {
+        // Create an instance of the class containing the private method
+        MyClass myClass = new MyClass();
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
+        // Prepare the input map
+        Map<String, Object> inputMap = new HashMap<>();
+        inputMap.put("key1", "value1");
+        inputMap.put("key2", 123);
+
+        // Use reflection to access the private method
+        Method method = MyClass.class.getDeclaredMethod("convertJsonToString", Map.class);
+        method.setAccessible(true);
+
+        // Call the private method and capture the result
+        String result = (String) method.invoke(myClass, inputMap);
+
+        // Expected JSON string
+        String expectedJson = new ObjectMapper().writeValueAsString(inputMap);
+
+        // Assert that the output is correct
+        assertEquals(expectedJson, result);
     }
 
     @Test
-    void testGetOpportunityListingPage() {
-        // Mock request map
-        Map<String, Object> request = new HashMap<>();
-        request.put("queuetype", "Sales");
-        request.put("countrycode", "US");
+    void testConvertJsonToStringExceptionHandling() throws Exception {
+        // Create a mock ObjectMapper to simulate an exception
+        ObjectMapper mockMapper = Mockito.mock(ObjectMapper.class);
+        Mockito.when(mockMapper.writeValueAsString(Mockito.anyMap())).thenThrow(new RuntimeException("Mocked Exception"));
 
-        // Mock repository response
-        Map<String, Object> mockResponse = new HashMap<>();
-        mockResponse.put("opportunities", "Mocked Opportunity Data");
+        // Reflection to set the mock ObjectMapper in the private method (if used as a class variable)
+        // Otherwise, test how the logger handles this scenario via reflection and exception mocking
 
-        // Define repository behavior
-        when(optyPitchRepo.getOpportunityListingPage("Sales", "US")).thenReturn(mockResponse);
+        // Validate error logging or exception handling if necessary
+        // This step depends on logger setup
+    }
 
-        // Call the method under test
-        Map<String, Object> response = opportunityService.getOpportunityListingPage(request);
-
-        // Verify the repository was called with correct parameters
-        verify(optyPitchRepo, times(1)).getOpportunityListingPage("Sales", "US");
-
-        // Assert the response
-        assertNotNull(response);
-        assertEquals("Mocked Opportunity Data", response.get("opportunities"));
+    // Class containing the private method (replace with your actual class)
+    static class MyClass {
+        private static String convertJsonToString(Map<String, Object> jsonObj) {
+            String jsonString = "";
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                jsonString = mapper.writeValueAsString(jsonObj);
+                System.out.println("The JSON map value: " + jsonString);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return jsonString;
+        }
     }
 }
