@@ -1,3 +1,5 @@
+package com.scb.cems.serviceImpl;
+
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -10,13 +12,13 @@ import org.mockito.MockitoAnnotations;
 import java.util.HashMap;
 import java.util.Map;
 
-class OpportunityServiceTest {
+class S2SOpportunityServiceImplTest {
 
     @Mock
     private OptyPitchRepo optyPitchRepo;
 
     @InjectMocks
-    private OpportunityService opportunityService; // Replace with your actual service class name
+    private S2SOpportunityServiceImpl opportunityService;
 
     @BeforeEach
     void setUp() {
