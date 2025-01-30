@@ -1,7 +1,5 @@
-    import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -9,19 +7,22 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.http.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
-import java.lang.reflect.Method;
-import java.util.*;
+import java.io.IOException;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 
 @RunWith(MockitoJUnitRunner.class)
 public class S2SOpportunityServiceImplTest {
 
     @InjectMocks
-    @Spy
     private S2SOpportunityServiceImpl service;
 
     @Mock
@@ -42,42 +43,91 @@ public class S2SOpportunityServiceImplTest {
     @Before
     public void setup() {
         MockitoAnnotations.openMocks(this);
-        service = spy(new S2SOpportunityServiceImpl()); // Ensure the service is spied
     }
 
     @Test
-    public void testManageLeadData_SuccessScenario() throws Exception {
-        // Mock request and response
+    public void testManageLeadData_SuccessfulResponse() throws Exception {
+        // Arrange
         Map<String, Object> request = new HashMap<>();
         request.put("headerData", "testHeader");
-        request.put("key1", "value1");
 
-        Map<String, Object> expectedResponse = new HashMap<>();
-        expectedResponse.put("responseKey", "responseValue");
+        int index = 12;
+        String serviceUrl = "http://example.com/service";
 
-        // Mock the serviceUrl using reflection
-        String serviceUrl = invokePrivateGetSales2ServiceUrl(1);
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("key", "value");
 
-        // Stub RestTemplate response
-        when(restTemplate.postForEntity(eq(serviceUrl), any(HttpEntity.class), eq(Map.class)))
-                .thenReturn(new ResponseEntity<>(expectedResponse, HttpStatus.OK));
+        ResponseEntity<Map> responseEntity = mock(ResponseEntity.class);
+        when(responseEntity.getStatusCodeValue()).thenReturn(200);
+        when(responseEntity.getBody()).thenReturn(responseMap);
 
-        // Stub getHeaderString method
-        doReturn("mockHeader").when(service).getHeaderString(any());
+        when(restTemplate.exchange(
+                any(URI.class), 
+                eq(HttpMethod.GET), 
+                any(HttpEntity.class), 
+                eq(Map.class)))
+            .thenReturn(responseEntity);
 
-        // Execute
-        Map<String, Object> actualResponse = service.manageLeadData(request, 1);
+        // Act
+        Map<String, Object> response = service.manageLeadData(request, index);
 
-        // Verify
-        assertNotNull(actualResponse);
-        assertEquals("responseValue", actualResponse.get("responseKey"));
-        verify(restTemplate, times(1)).postForEntity(eq(serviceUrl), any(HttpEntity.class), eq(Map.class));
+        // Assert
+        assertNotNull(response);
+        assertEquals("value", response.get("key"));
     }
 
-    // Utility method to invoke private method using reflection
-    private String invokePrivateGetSales2ServiceUrl(int index) throws Exception {
-        Method method = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
-        method.setAccessible(true);
-        return (String) method.invoke(service, index);
+    @Test(expected = Sales2ServiceRuntimeException.class)
+    public void testManageLeadData_InvalidResponse() throws Exception {
+        // Arrange
+        Map<String, Object> request = new HashMap<>();
+        int index = 12;
+        String serviceUrl = "http://example.com/service";
+
+        ResponseEntity<Map> responseEntity = mock(ResponseEntity.class);
+        when(responseEntity.getStatusCodeValue()).thenReturn(500);
+
+        when(restTemplate.exchange(
+                any(URI.class), 
+                eq(HttpMethod.GET), 
+                any(HttpEntity.class), 
+                eq(Map.class)))
+            .thenReturn(responseEntity);
+
+        // Act
+        service.manageLeadData(request, index);
+    }
+
+    @Test(expected = Sales2ServiceRuntimeException.class)
+    public void testManageLeadData_IOException() throws Exception {
+        // Arrange
+        Map<String, Object> request = new HashMap<>();
+        int index = 12;
+
+        when(restTemplate.exchange(
+                any(URI.class), 
+                eq(HttpMethod.GET), 
+                any(HttpEntity.class), 
+                eq(Map.class)))
+            .thenThrow(new IOException("Test IOException"));
+
+        // Act
+        service.manageLeadData(request, index);
+    }
+
+    @Test(expected = Sales2ServiceRuntimeException.class)
+    public void testManageLeadData_GenericException() throws Exception {
+        // Arrange
+        Map<String, Object> request = new HashMap<>();
+        int index = 12;
+
+        when(restTemplate.exchange(
+                any(URI.class), 
+                eq(HttpMethod.GET), 
+                any(HttpEntity.class), 
+                eq(Map.class)))
+            .thenThrow(new Exception("Test Exception"));
+
+        // Act
+        service.manageLeadData(request, index);
     }
 }
