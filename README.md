@@ -14,6 +14,7 @@ import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.*;
 
@@ -53,13 +54,9 @@ public class S2SOpportunityServiceImplTest {
         Map<String, Object> expectedResponse = new HashMap<>();
         expectedResponse.put("responseKey", "responseValue");
 
-        String serviceUrl = "http://test-service-url.com";
+        String serviceUrl = invokePrivateGetSales2ServiceUrl(1);
         when(restTemplate.postForEntity(eq(serviceUrl), any(HttpEntity.class), eq(Map.class)))
                 .thenReturn(new ResponseEntity<>(expectedResponse, HttpStatus.OK));
-
-        // Mock getSales2ServiceUrl method
-        service = spy(service);
-        doReturn(serviceUrl).when(service).getSales2ServiceUrl(anyInt());
 
         // Mock getHeaderString method
         doReturn("mockHeader").when(service).getHeaderString(any());
@@ -79,13 +76,9 @@ public class S2SOpportunityServiceImplTest {
         Map<String, Object> request = new HashMap<>();
         request.put("headerData", "testHeader");
 
-        String serviceUrl = "http://test-service-url.com";
+        String serviceUrl = invokePrivateGetSales2ServiceUrl(1);
         when(restTemplate.postForEntity(eq(serviceUrl), any(HttpEntity.class), eq(Map.class)))
                 .thenReturn(new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR));
-
-        // Mock getSales2ServiceUrl method
-        service = spy(service);
-        doReturn(serviceUrl).when(service).getSales2ServiceUrl(anyInt());
 
         // Mock getHeaderString method
         doReturn("mockHeader").when(service).getHeaderString(any());
@@ -100,8 +93,7 @@ public class S2SOpportunityServiceImplTest {
         Map<String, Object> request = new HashMap<>();
         request.put("headerData", "testHeader");
 
-        // Mock getSales2ServiceUrl method
-        service = spy(service);
+        // Simulate an IOException when calling private method
         doThrow(new IOException("IO Error")).when(service).getSales2ServiceUrl(anyInt());
 
         // Execute
@@ -114,11 +106,29 @@ public class S2SOpportunityServiceImplTest {
         Map<String, Object> request = new HashMap<>();
         request.put("headerData", "testHeader");
 
-        // Mock getSales2ServiceUrl method
-        service = spy(service);
+        // Simulate a generic exception when calling private method
         doThrow(new Exception("Generic Error")).when(service).getSales2ServiceUrl(anyInt());
 
         // Execute
         service.manageLeadData(request, 1);
+    }
+
+    @Test
+    public void testPrivateGetSales2ServiceUrl() throws Exception {
+        int index = 1;
+
+        // Call private method using reflection
+        String serviceUrl = invokePrivateGetSales2ServiceUrl(index);
+
+        // Verify output
+        assertNotNull(serviceUrl);
+        System.out.println("Service URL: " + serviceUrl);
+    }
+
+    // Utility method to invoke the private method using reflection
+    private String invokePrivateGetSales2ServiceUrl(int index) throws Exception {
+        Method method = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
+        method.setAccessible(true);
+        return (String) method.invoke(service, index);
     }
 }
