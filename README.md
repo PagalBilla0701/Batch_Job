@@ -1,18 +1,41 @@
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.*;
-import java.lang.reflect.Method;
-import java.util.Map;
-
+@RunWith(MockitoJUnitRunner.class)
 public class S2SOpportunityServiceImplTest {
 
     @InjectMocks
     private S2SOpportunityServiceImpl service;
 
     @Mock
+    private OpportunityPitchEntityDataRepository optyPitchRepo;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private ParamRepository paramRepository;
+
+    @Mock
+    private RestTemplate restTemplate;
+
+    @Mock
+    private ObjectMapper mapper;
+
+    @Mock
+    private ValidationFactory validationFactory;
+
+    @Mock
+    private OpportunityFactory opportunityFactory;
+
+    @Mock
+    private CemsUtil cemsUtil;
+
+    @Mock
+    private UserBean userBean;
+
+    @Mock
+    private FormData formData;
+
+    @Mock
+    private FormData oldData;
 
     @Before
     public void setup() {
@@ -20,28 +43,43 @@ public class S2SOpportunityServiceImplTest {
     }
 
     @Test
-    public void testGetLMSEndPointeUrl() throws Exception {
-        // Arrange
-        String paramKey = "testKey";
+    public void testSaveOpportunity() throws Exception {
+        // Mocking dependencies
+        String countryCode = "US";
+        when(userBean.getCountryCode()).thenReturn(countryCode);
+        when(userBean.getPeoplewiseld()).thenReturn("user123");
+        when(formData.getCountry()).thenReturn(null); // Simulate a blank country code in formData
+        when(formData.getAssignTo()).thenReturn("userX");
+        when(formData.getOwnerId()).thenReturn("owner123");
+        when(oldData.getAssignTo()).thenReturn("userY");
+        when(oldData.getOwnerId()).thenReturn("owner123");
+        when(validationFactory.getEditValidationEngine(countryCode)).thenReturn(mock(ValidationEngine.class));
+        when(opportunityFactory.getOpportunityListingImpl(countryCode)).thenReturn(mock(OpportunityListingImpl.class));
+        when(cemsUtil.convertToOpportunityPOJO(any())).thenReturn(new OpportunityReqRespJson());
+        
+        Map<String, Object> request = new HashMap<>();
+        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> responseData = new HashMap<>();
+        List<OpportunityReqRespJson> oppList = new ArrayList<>();
+        responseData.put("data", oppList);
+        response.put("data", responseData);
 
-        // Mock the ParamRepository to return a Param object
-        Param mockParam = mock(Param.class);
-        when(mockParam.getKeys()).thenReturn(new String[]{paramKey});
-        when(paramRepository.getParam(any(Param.class))).thenReturn(mockParam);
-        String[] mockData = new String[]{"GET", "http://example.com", "/path", "/more", "end", "params", "and", "more", "", "", ""};
-        when(mockParam.getData()).thenReturn(mockData);
+        when(opportunityFactory.getOpportunityListingImpl(countryCode)
+                .createOrUpdateOpportunity(eq(userBean), eq(request), any(), anyString()))
+                .thenReturn(response);
 
-        // Using reflection to access the private method
-        Method method = S2SOpportunityServiceImpl.class.getDeclaredMethod("getLMSEndPointeUrl", String.class);
-        method.setAccessible(true);
+        // Run the method under test
+        Map<String, Object> result = service.saveOpportunity(userBean, request, formData, oldData, "UTC");
 
-        // Act
-        Map<String, String> result = (Map<String, String>) method.invoke(service, paramKey);
+        // Verify interactions
+        verify(validationFactory).getEditValidationEngine(countryCode);
+        verify(opportunityFactory.getOpportunityListingImpl(countryCode))
+                .createOrUpdateOpportunity(eq(userBean), eq(request), any(), anyString());
+        verify(cemsUtil).convertToOpportunityPOJO(any());
 
-        // Assert
+        // Validate the results
         assertNotNull(result);
-        assertEquals("httpMethod", result.get("httpMethod"));
-        assertEquals("GET", result.get("httpMethod"));
-        assertTrue(result.get("serviceUrl").startsWith("http://example.com"));
+        assertTrue(result.containsKey("data"));
+        assertNotNull(result.get("data"));
     }
 }
