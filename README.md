@@ -1,78 +1,46 @@
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
+import org.junit.Test;
+import org.mockito.Mockito;
 
-import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
+import java.lang.reflect.Method;
 import java.util.Map;
 
-class ButtonServiceTest {
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
-    @InjectMocks
-    private ButtonService buttonService; // Assuming your method belongs to this service class
-
-    @Mock
-    private CallActivity callActivity;
+public class YourClassTest {
 
     @Test
-    void testGetButtons_withOneFaAndTwoFaVerified() {
-        MockitoAnnotations.openMocks(this);
+    public void testGetLMSEndPointeUrl() throws Exception {
+        // Mock dependencies
+        ParamRepository paramRepository = mock(ParamRepository.class);
+        YourClass yourClass = new YourClass();
+        
+        // Inject the mock into your class (use dependency injection or reflection)
+        java.lang.reflect.Field field = YourClass.class.getDeclaredField("paramRepository");
+        field.setAccessible(true);
+        field.set(yourClass, paramRepository);
 
-        // Mock callActivity behavior
-        CallActivity.Id callId = mock(CallActivity.Id.class);
-        when(callId.getCountryCode()).thenReturn("US");
-        when(callActivity.getId()).thenReturn(callId);
-        when(callActivity.isOneFaVerifed()).thenReturn(true);
-        when(callActivity.isTwoFaVerified()).thenReturn(true);
-        when(callActivity.getOneFa()).thenReturn("2+1");
-        when(callActivity.getTwoFa()).thenReturn("OTHER");
+        // Mocking the behavior of ParamRepository
+        Param mockParam = new Param("URL17");
+        mockParam.setKeys(new String[]{"paramKey"});
 
-        // Call the method under test
-        Map<String, String> buttons = buttonService.getButtons(callActivity);
+        Param mockResult = mock(Param.class);
+        when(mockResult.getData()).thenReturn(new String[]{
+                "GET", "http://example.com", "/path", "/to", "/resource", null, null, null, null, null, null
+        });
+        when(paramRepository.getParam(Mockito.any(Param.class))).thenReturn(mockResult);
 
-        // Verify the result
-        assertEquals("Success", buttons.get("twoPlusOne"));
-        assertEquals("Success", buttons.get("OTHER"));
-    }
+        // Use reflection to access the private method
+        Method method = YourClass.class.getDeclaredMethod("getLMSEndPointeUrl", String.class);
+        method.setAccessible(true);
 
-    @Test
-    void testGetButtons_withOnlyOneFaVerified() {
-        MockitoAnnotations.openMocks(this);
+        // Invoke the private method
+        @SuppressWarnings("unchecked")
+        Map<String, String> result = (Map<String, String>) method.invoke(yourClass, "paramKey");
 
-        // Mock callActivity behavior
-        CallActivity.Id callId = mock(CallActivity.Id.class);
-        when(callId.getCountryCode()).thenReturn("US");
-        when(callActivity.getId()).thenReturn(callId);
-        when(callActivity.isOneFaVerifed()).thenReturn(true);
-        when(callActivity.isTwoFaVerified()).thenReturn(false);
-        when(callActivity.getOneFa()).thenReturn("OTHER");
-
-        // Call the method under test
-        Map<String, String> buttons = buttonService.getButtons(callActivity);
-
-        // Verify the result
-        assertEquals("Success", buttons.get("OTHER"));
-        assertEquals(null, buttons.get("twoPlusOne")); // Should not be set
-    }
-
-    @Test
-    void testGetButtons_withNoFaVerified() {
-        MockitoAnnotations.openMocks(this);
-
-        // Mock callActivity behavior
-        CallActivity.Id callId = mock(CallActivity.Id.class);
-        when(callId.getCountryCode()).thenReturn("US");
-        when(callActivity.getId()).thenReturn(callId);
-        when(callActivity.isOneFaVerifed()).thenReturn(false);
-        when(callActivity.isTwoFaVerified()).thenReturn(false);
-
-        // Call the method under test
-        Map<String, String> buttons = buttonService.getButtons(callActivity);
-
-        // Verify the result
-        assertEquals(null, buttons.get("twoPlusOne")); // Should not be set
-        assertEquals(null, buttons.get("OTHER")); // Should not be set
+        // Assertions
+        assertNotNull(result);
+        assertEquals("GET", result.get("httpMethod"));
+        assertEquals("http://example.com/path/to/resource", result.get("serviceUrl"));
     }
 }
