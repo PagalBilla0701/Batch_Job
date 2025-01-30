@@ -1,35 +1,49 @@
-@Test
-public void testManageLeadData_SuccessfulResponse() throws Exception {
-    // Arrange
-    Map<String, Object> request = new HashMap<>();
-    request.put("headerData", "testHeader");
+import java.lang.reflect.Method;
+import org.junit.Test;
+import static org.mockito.Mockito.*;
 
-    int index = 12;
+public class S2SOpportunityServiceImplTest {
 
-    // Mock the service URL
-    String serviceUrl = "http://example.com/service";
-    when(service.getSales2ServiceUrl(index)).thenReturn(serviceUrl); // Mocking dynamic URL
+    @Test
+    public void testManageLeadData_SuccessfulResponse() throws Exception {
+        // Arrange
+        Map<String, Object> request = new HashMap<>();
+        request.put("headerData", "testHeader");
 
-    // Mock the response entity
-    Map<String, Object> responseMap = new HashMap<>();
-    responseMap.put("key", "value");
+        int index = 12;
 
-    ResponseEntity<Map> responseEntity = mock(ResponseEntity.class);
-    when(responseEntity.getStatusCodeValue()).thenReturn(200);
-    when(responseEntity.getBody()).thenReturn(responseMap);
+        // Create an instance of the service class
+        S2SOpportunityServiceImpl service = new S2SOpportunityServiceImpl();
 
-    // Mock RestTemplate behavior
-    when(restTemplate.exchange(
-            eq(new URI(serviceUrl)), // Ensure URI is correctly mocked
-            eq(HttpMethod.GET),
-            any(HttpEntity.class),
-            eq(Map.class))
-    ).thenReturn(responseEntity);
+        // Use reflection to access the private method getSales2ServiceUrl
+        Method method = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
+        method.setAccessible(true); // Make the private method accessible
 
-    // Act
-    Map<String, Object> response = service.manageLeadData(request, index);
+        // Mock the getSales2ServiceUrl method to return a dummy URL
+        String serviceUrl = "http://example.com/service";
+        when(method.invoke(service, index)).thenReturn(serviceUrl); // Mock invocation of the method
 
-    // Assert
-    assertNotNull(response);
-    assertEquals("value", response.get("key"));
+        // Mock the response entity
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("key", "value");
+
+        ResponseEntity<Map> responseEntity = mock(ResponseEntity.class);
+        when(responseEntity.getStatusCodeValue()).thenReturn(200);
+        when(responseEntity.getBody()).thenReturn(responseMap);
+
+        // Mock RestTemplate behavior
+        when(restTemplate.exchange(
+                eq(new URI(serviceUrl)), // Ensure URI is correctly mocked
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(Map.class))
+        ).thenReturn(responseEntity);
+
+        // Act
+        Map<String, Object> response = service.manageLeadData(request, index);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("value", response.get("key"));
+    }
 }
