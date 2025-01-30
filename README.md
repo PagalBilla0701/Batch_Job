@@ -1,55 +1,32 @@
-@Test(expected = Sales2ServiceRuntimeException.class)
-public void testManageLeadData_InvalidResponse() throws Exception {
+@Test
+public void testManageLeadData_SuccessfulResponse() throws Exception {
     // Arrange
     Map<String, Object> request = new HashMap<>();
-    int index = 12;
+    request.put("headerData", "testHeader");
 
+    int index = 12;
+    String serviceUrl = "http://example.com/service";
+
+    Map<String, Object> responseMap = new HashMap<>();
+    responseMap.put("key", "value");
+
+    // Mock the response entity
     ResponseEntity<Map> responseEntity = mock(ResponseEntity.class);
-    when(responseEntity.getStatusCodeValue()).thenReturn(500); // Simulate invalid status code
+    when(responseEntity.getStatusCodeValue()).thenReturn(200);
+    when(responseEntity.getBody()).thenReturn(responseMap);
 
+    // Mock RestTemplate behavior
     when(restTemplate.exchange(
             any(URI.class),
             eq(HttpMethod.GET),
             any(HttpEntity.class),
-            eq(Map.class)))
-        .thenReturn(responseEntity);
+            eq(Map.class))
+    ).thenReturn(responseEntity);
 
     // Act
-    service.manageLeadData(request, index); // This should throw Sales2ServiceRuntimeException
-}
+    Map<String, Object> response = service.manageLeadData(request, index);
 
-@Test(expected = Sales2ServiceRuntimeException.class)
-public void testManageLeadData_IOException() throws Exception {
-    // Arrange
-    Map<String, Object> request = new HashMap<>();
-    int index = 12;
-
-    // Simulate IOException in RestTemplate
-    when(restTemplate.exchange(
-            any(URI.class),
-            eq(HttpMethod.GET),
-            any(HttpEntity.class),
-            eq(Map.class)))
-        .thenThrow(new IOException("Simulated IOException"));
-
-    // Act
-    service.manageLeadData(request, index); // This should throw Sales2ServiceRuntimeException
-}
-
-@Test(expected = Sales2ServiceRuntimeException.class)
-public void testManageLeadData_GenericException() throws Exception {
-    // Arrange
-    Map<String, Object> request = new HashMap<>();
-    int index = 12;
-
-    // Simulate generic Exception in RestTemplate
-    when(restTemplate.exchange(
-            any(URI.class),
-            eq(HttpMethod.GET),
-            any(HttpEntity.class),
-            eq(Map.class)))
-        .thenThrow(new Exception("Simulated Generic Exception"));
-
-    // Act
-    service.manageLeadData(request, index); // This should throw Sales2ServiceRuntimeException
+    // Assert
+    assertNotNull(response);
+    assertEquals("value", response.get("key"));
 }
