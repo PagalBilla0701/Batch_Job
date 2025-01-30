@@ -1,4 +1,4 @@
-import static org.mockito.Mockito.*;
+    import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -42,7 +42,7 @@ public class S2SOpportunityServiceImplTest {
     @Before
     public void setup() {
         MockitoAnnotations.openMocks(this);
-        service = spy(service); // Spy the service object
+        service = spy(new S2SOpportunityServiceImpl()); // Ensure the service is spied
     }
 
     @Test
