@@ -1,69 +1,50 @@
-@RunWith(MockitoJUnitRunner.class)
-public class OpportunityServiceTest {
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.util.HashMap;
+import java.util.Map;
+
+class OpportunityServiceTest {
+
+    @Mock
+    private OptyPitchRepo optyPitchRepo;
 
     @InjectMocks
-    private OpportunityService opportunityService; // Assuming the class containing the method is named OpportunityService.
+    private OpportunityService opportunityService; // Replace with your actual service class name
 
-    @Mock
-    private ValidationFactory validationFactory;
-
-    @Mock
-    private CemsUtil cemsUtil;
-
-    @Mock
-    private OpportunityFactory opportunityFactory;
-
-    @Mock
-    private ValidationEngine validationEngine;
-
-    @Mock
-    private OpportunityListingImpl opportunityListing;
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
 
     @Test
-    public void testCreateOpportunity() throws Exception {
-        // Arrange
-        UserBean userBean = new UserBean();
-        userBean.setCountryCode("US");
-        userBean.setPeoplewiseId("12345");
-
-        FormData formData = new FormData();
-        formData.setApplicationId("1001");
-
+    void testGetOpportunityListingPage() {
+        // Mock request map
         Map<String, Object> request = new HashMap<>();
-        String sourceTimeZoneOffset = "UTC+0";
+        request.put("queuetype", "Sales");
+        request.put("countrycode", "US");
 
-        Attributes attributes = new Attributes();
-        OpportunityReqRespJson responseOpportunity = new OpportunityReqRespJson();
-        responseOpportunity.setId("1001");
-        responseOpportunity.setType("applications");
+        // Mock repository response
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put("opportunities", "Mocked Opportunity Data");
 
-        Map<String, Object> responseMap = new HashMap<>();
-        List<OpportunityReqRespJson> oppList = new ArrayList<>();
-        oppList.add(responseOpportunity);
-        responseMap.put("data", oppList);
+        // Define repository behavior
+        when(optyPitchRepo.getOpportunityListingPage("Sales", "US")).thenReturn(mockResponse);
 
-        // Mocking dependencies
-        when(validationFactory.getValidationEngine("US")).thenReturn(validationEngine);
-        doNothing().when(validationEngine).performPreSaveActions(userBean, formData);
-        doNothing().when(validationEngine).performPostSaveActions(eq(userBean), any(OpportunityReqRespJson.class));
-        doNothing().when(cemsUtil).copyFormDataToAttributes(formData, attributes);
+        // Call the method under test
+        Map<String, Object> response = opportunityService.getOpportunityListingPage(request);
 
-        when(opportunityFactory.getOpportunityListingImpl("US")).thenReturn(opportunityListing);
-        when(opportunityListing.createOrUpdateOpportunity(eq(userBean), eq(request), anyMap(), eq(sourceTimeZoneOffset)))
-            .thenReturn(responseMap);
+        // Verify the repository was called with correct parameters
+        verify(optyPitchRepo, times(1)).getOpportunityListingPage("Sales", "US");
 
-        when(cemsUtil.convertToOpportunityPOJO(responseOpportunity)).thenReturn(responseOpportunity);
-
-        // Act
-        Map<String, Object> result = opportunityService.createOpportunity(userBean, request, formData, sourceTimeZoneOffset);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(responseMap, result);
-        verify(validationFactory).getValidationEngine("US");
-        verify(validationEngine).performPreSaveActions(userBean, formData);
-        verify(validationEngine).performPostSaveActions(eq(userBean), eq(responseOpportunity));
-        verify(opportunityFactory).getOpportunityListingImpl("US");
-        verify(opportunityListing).createOrUpdateOpportunity(eq(userBean), eq(request), anyMap(), eq(sourceTimeZoneOffset));
+        // Assert the response
+        assertNotNull(response);
+        assertEquals("Mocked Opportunity Data", response.get("opportunities"));
     }
 }
