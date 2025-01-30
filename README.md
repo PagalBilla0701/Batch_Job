@@ -1,5 +1,12 @@
 import java.lang.reflect.Method;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.Test;
+import org.mockito.Mockito;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import static org.mockito.Mockito.*;
 
 public class S2SOpportunityServiceImplTest {
@@ -21,7 +28,13 @@ public class S2SOpportunityServiceImplTest {
 
         // Mock the getSales2ServiceUrl method to return a dummy URL
         String serviceUrl = "http://example.com/service";
-        when(method.invoke(service, index)).thenReturn(serviceUrl); // Mock invocation of the method
+        try {
+            // Mock invocation of the method using reflection
+            when(method.invoke(service, index)).thenReturn(serviceUrl);
+        } catch (Exception e) {
+            e.printStackTrace();  // Log the exception for debugging
+            throw new RuntimeException("Error invoking getSales2ServiceUrl via reflection", e);
+        }
 
         // Mock the response entity
         Map<String, Object> responseMap = new HashMap<>();
@@ -32,6 +45,7 @@ public class S2SOpportunityServiceImplTest {
         when(responseEntity.getBody()).thenReturn(responseMap);
 
         // Mock RestTemplate behavior
+        RestTemplate restTemplate = mock(RestTemplate.class);
         when(restTemplate.exchange(
                 eq(new URI(serviceUrl)), // Ensure URI is correctly mocked
                 eq(HttpMethod.GET),
