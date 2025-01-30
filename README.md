@@ -1,23 +1,115 @@
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+@RunWith(MockitoJUnitRunner.class)
+public class S2SOpportunityServiceImplTest {
 
-import static org.mockito.Mockito.verify;
+    @InjectMocks
+    private S2SOpportunityServiceImpl service;
 
-class YourServiceTest {
+    @Mock
+    private OpportunityPitchEntityDataRepository optyPitchRepo;
 
-    private final OptyPitchRepo optyPitchRepo = Mockito.mock(OptyPitchRepo.class);
-    private final YourService yourService = new YourService(optyPitchRepo);
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private ParamRepository paramRepository;
+
+    @Mock
+    private RestTemplate restTemplate;
+
+    @Mock
+    private ObjectMapper mapper;
+
+    @Before
+    public void setup() {
+        MockitoAnnotations.openMocks(this);
+    }
 
     @Test
-    void testUpdateConsentRefID() {
-        // Arrange
-        String targetRefID = "newRef123";
-        String originalRefID = "oldRef456";
+    public void testManageLeadData_Success_GET() throws Exception {
+        // Mock Input Data
+        Map<String, Object> request = new HashMap<>();
+        request.put("headerData", "testHeader");
 
-        // Act
-        yourService.updateConsentRefID(targetRefID, originalRefID);
+        int index = 12;
+        String serviceUrl = "http://test.com";
 
-        // Assert
-        verify(optyPitchRepo).updateConsentForm(targetRefID, originalRefID);
+        // Mock Dependencies
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("s2sHeader", "testHeader");
+
+        Map<String, Object> expectedResponse = new HashMap<>();
+        expectedResponse.put("key", "value");
+
+        ResponseEntity<Map> mockResponse = new ResponseEntity<>(expectedResponse, HttpStatus.OK);
+
+        when(service.getSales2ServiceUrl(index)).thenReturn(serviceUrl);
+        when(restTemplate.exchange(
+                eq(new URI(serviceUrl)),
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenReturn(mockResponse);
+
+        // Execute Method
+        Map<String, Object> response = service.manageLeadData(request, index);
+
+        // Verify
+        assertNotNull(response);
+        assertEquals("value", response.get("key"));
+    }
+
+    @Test
+    public void testManageLeadData_Success_POST() throws Exception {
+        // Mock Input Data
+        Map<String, Object> request = new HashMap<>();
+        request.put("key", "value");
+
+        int index = 10;
+        String serviceUrl = "http://test.com";
+
+        // Mock Dependencies
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("s2sHeader", "testHeader");
+
+        Map<String, Object> expectedResponse = new HashMap<>();
+        expectedResponse.put("key", "value");
+
+        ResponseEntity<Map> mockResponse = new ResponseEntity<>(expectedResponse, HttpStatus.OK);
+
+        when(service.getSales2ServiceUrl(index)).thenReturn(serviceUrl);
+        when(restTemplate.postForEntity(
+                eq(serviceUrl),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenReturn(mockResponse);
+
+        // Execute Method
+        Map<String, Object> response = service.manageLeadData(request, index);
+
+        // Verify
+        assertNotNull(response);
+        assertEquals("value", response.get("key"));
+    }
+
+    @Test(expected = Sales2ServiceRuntimeException.class)
+    public void testManageLeadData_ServiceException() throws Exception {
+        // Mock Input Data
+        Map<String, Object> request = new HashMap<>();
+        request.put("headerData", "testHeader");
+
+        int index = 12;
+        String serviceUrl = "http://test.com";
+
+        // Mock Dependencies
+        when(service.getSales2ServiceUrl(index)).thenReturn(serviceUrl);
+        when(restTemplate.exchange(
+                eq(new URI(serviceUrl)),
+                eq(HttpMethod.GET),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenThrow(new RuntimeException("Mocked exception"));
+
+        // Execute Method
+        service.manageLeadData(request, index);
     }
 }
