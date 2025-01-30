@@ -5,6 +5,7 @@ import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.*;
 
@@ -19,12 +20,6 @@ public class S2SOpportunityServiceImplTest {
     @Mock
     private RestTemplate restTemplate;
 
-    @Mock
-    private CustomMessageConverter customMessageConverters; // Mock custom message converters (if any)
-
-    @Mock
-    private StringSubstitutor strSubstitutor;
-
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
@@ -38,19 +33,23 @@ public class S2SOpportunityServiceImplTest {
 
         int index = 12;
         String serviceUrl = "http://example.com/service";
-        StringSubstitutor strSubstitutor = mock(StringSubstitutor.class);
-        
-        // Mock getSales2ServiceUrl and getHeaderString methods
-        when(service.getSales2ServiceUrl(index)).thenReturn(serviceUrl);
+
+        // Use reflection to access the private method
+        Method getSales2ServiceUrl = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
+        getSales2ServiceUrl.setAccessible(true);
+
+        // Mock the result of the private method
+        when(getSales2ServiceUrl.invoke(service, index)).thenReturn(serviceUrl);
+
+        // Mock getHeaderString method
         when(service.getHeaderString(any())).thenReturn("headerValue");
 
-        // Mock the response from RestTemplate exchange
+        // Mock the response from RestTemplate.exchange
         ResponseEntity<Map> responseEntity = mock(ResponseEntity.class);
         Map<String, Object> responseMap = new HashMap<>();
         responseMap.put("key", "value");
         when(responseEntity.getStatusCodeValue()).thenReturn(200);
         when(responseEntity.getBody()).thenReturn(responseMap);
-        
         when(restTemplate.exchange(
                 eq(new URI(serviceUrl)), 
                 eq(HttpMethod.GET), 
@@ -75,11 +74,17 @@ public class S2SOpportunityServiceImplTest {
         int index = 12;
         String serviceUrl = "http://example.com/service";
 
-        // Mock getSales2ServiceUrl and getHeaderString methods
-        when(service.getSales2ServiceUrl(index)).thenReturn(serviceUrl);
+        // Use reflection to access the private method
+        Method getSales2ServiceUrl = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
+        getSales2ServiceUrl.setAccessible(true);
+
+        // Mock the result of the private method
+        when(getSales2ServiceUrl.invoke(service, index)).thenReturn(serviceUrl);
+
+        // Mock getHeaderString method
         when(service.getHeaderString(any())).thenReturn("headerValue");
 
-        // Mock the response from RestTemplate exchange to simulate an error
+        // Mock an error response from RestTemplate.exchange
         ResponseEntity<Map> responseEntity = mock(ResponseEntity.class);
         when(responseEntity.getStatusCodeValue()).thenReturn(500); // Simulate error response
         when(restTemplate.exchange(
@@ -102,8 +107,14 @@ public class S2SOpportunityServiceImplTest {
         int index = 12;
         String serviceUrl = "http://example.com/service";
 
-        // Mock getSales2ServiceUrl and getHeaderString methods
-        when(service.getSales2ServiceUrl(index)).thenReturn(serviceUrl);
+        // Use reflection to access the private method
+        Method getSales2ServiceUrl = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
+        getSales2ServiceUrl.setAccessible(true);
+
+        // Mock the result of the private method
+        when(getSales2ServiceUrl.invoke(service, index)).thenReturn(serviceUrl);
+
+        // Mock getHeaderString method
         when(service.getHeaderString(any())).thenReturn("headerValue");
 
         // Simulate IOException from RestTemplate
@@ -132,8 +143,14 @@ public class S2SOpportunityServiceImplTest {
         int index = 12;
         String serviceUrl = "http://example.com/service";
 
-        // Mock getSales2ServiceUrl and getHeaderString methods
-        when(service.getSales2ServiceUrl(index)).thenReturn(serviceUrl);
+        // Use reflection to access the private method
+        Method getSales2ServiceUrl = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
+        getSales2ServiceUrl.setAccessible(true);
+
+        // Mock the result of the private method
+        when(getSales2ServiceUrl.invoke(service, index)).thenReturn(serviceUrl);
+
+        // Mock getHeaderString method
         when(service.getHeaderString(any())).thenReturn("headerValue");
 
         // Simulate a general exception in RestTemplate
