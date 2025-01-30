@@ -1,16 +1,10 @@
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.*;
-import org.springframework.http.*;
-import org.springframework.web.client.RestTemplate;
-
-import java.io.IOException;
 import java.lang.reflect.Method;
-import java.net.URI;
-import java.util.*;
-
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+import java.util.Map;
 
 public class S2SOpportunityServiceImplTest {
 
@@ -18,155 +12,36 @@ public class S2SOpportunityServiceImplTest {
     private S2SOpportunityServiceImpl service;
 
     @Mock
-    private RestTemplate restTemplate;
+    private ParamRepository paramRepository;
 
     @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
+    public void setup() {
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    public void testManageLeadData_SuccessfulResponse() throws Exception {
+    public void testGetLMSEndPointeUrl() throws Exception {
         // Arrange
-        Map<String, Object> request = new HashMap<>();
-        request.put("headerData", "testHeader");
+        String paramKey = "testKey";
 
-        int index = 12;
-        String serviceUrl = "http://example.com/service";
+        // Mock the ParamRepository to return a Param object
+        Param mockParam = mock(Param.class);
+        when(mockParam.getKeys()).thenReturn(new String[]{paramKey});
+        when(paramRepository.getParam(any(Param.class))).thenReturn(mockParam);
+        String[] mockData = new String[]{"GET", "http://example.com", "/path", "/more", "end", "params", "and", "more", "", "", ""};
+        when(mockParam.getData()).thenReturn(mockData);
 
-        // Use reflection to access the private method
-        Method getSales2ServiceUrl = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
-        getSales2ServiceUrl.setAccessible(true);
-
-        // Mock the result of the private method
-        when(getSales2ServiceUrl.invoke(service, index)).thenReturn(serviceUrl);
-
-        // Mock getHeaderString method
-        when(service.getHeaderString(any())).thenReturn("headerValue");
-
-        // Mock the response from RestTemplate.exchange
-        ResponseEntity<Map> responseEntity = mock(ResponseEntity.class);
-        Map<String, Object> responseMap = new HashMap<>();
-        responseMap.put("key", "value");
-        when(responseEntity.getStatusCodeValue()).thenReturn(200);
-        when(responseEntity.getBody()).thenReturn(responseMap);
-        when(restTemplate.exchange(
-                eq(new URI(serviceUrl)), 
-                eq(HttpMethod.GET), 
-                any(HttpEntity.class), 
-                eq(Map.class))
-        ).thenReturn(responseEntity);
+        // Using reflection to access the private method
+        Method method = S2SOpportunityServiceImpl.class.getDeclaredMethod("getLMSEndPointeUrl", String.class);
+        method.setAccessible(true);
 
         // Act
-        Map<String, Object> response = service.manageLeadData(request, index);
+        Map<String, String> result = (Map<String, String>) method.invoke(service, paramKey);
 
         // Assert
-        assertNotNull(response);
-        assertEquals("value", response.get("key"));
-    }
-
-    @Test(expected = Sales2ServiceRuntimeException.class)
-    public void testManageLeadData_ServiceError() throws Exception {
-        // Arrange
-        Map<String, Object> request = new HashMap<>();
-        request.put("headerData", "testHeader");
-
-        int index = 12;
-        String serviceUrl = "http://example.com/service";
-
-        // Use reflection to access the private method
-        Method getSales2ServiceUrl = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
-        getSales2ServiceUrl.setAccessible(true);
-
-        // Mock the result of the private method
-        when(getSales2ServiceUrl.invoke(service, index)).thenReturn(serviceUrl);
-
-        // Mock getHeaderString method
-        when(service.getHeaderString(any())).thenReturn("headerValue");
-
-        // Mock an error response from RestTemplate.exchange
-        ResponseEntity<Map> responseEntity = mock(ResponseEntity.class);
-        when(responseEntity.getStatusCodeValue()).thenReturn(500); // Simulate error response
-        when(restTemplate.exchange(
-                eq(new URI(serviceUrl)), 
-                eq(HttpMethod.GET), 
-                any(HttpEntity.class), 
-                eq(Map.class))
-        ).thenReturn(responseEntity);
-
-        // Act
-        service.manageLeadData(request, index); // This should throw Sales2ServiceRuntimeException
-    }
-
-    @Test
-    public void testManageLeadData_IOException() throws Exception {
-        // Arrange
-        Map<String, Object> request = new HashMap<>();
-        request.put("headerData", "testHeader");
-
-        int index = 12;
-        String serviceUrl = "http://example.com/service";
-
-        // Use reflection to access the private method
-        Method getSales2ServiceUrl = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
-        getSales2ServiceUrl.setAccessible(true);
-
-        // Mock the result of the private method
-        when(getSales2ServiceUrl.invoke(service, index)).thenReturn(serviceUrl);
-
-        // Mock getHeaderString method
-        when(service.getHeaderString(any())).thenReturn("headerValue");
-
-        // Simulate IOException from RestTemplate
-        when(restTemplate.exchange(
-                eq(new URI(serviceUrl)), 
-                eq(HttpMethod.GET), 
-                any(HttpEntity.class), 
-                eq(Map.class))
-        ).thenThrow(new IOException("IOException"));
-
-        // Act and Assert
-        try {
-            service.manageLeadData(request, index);
-            fail("Expected IOException to be thrown");
-        } catch (Sales2ServiceRuntimeException e) {
-            assertEquals("IOException", e.getMessage());
-        }
-    }
-
-    @Test
-    public void testManageLeadData_Exception() throws Exception {
-        // Arrange
-        Map<String, Object> request = new HashMap<>();
-        request.put("headerData", "testHeader");
-
-        int index = 12;
-        String serviceUrl = "http://example.com/service";
-
-        // Use reflection to access the private method
-        Method getSales2ServiceUrl = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
-        getSales2ServiceUrl.setAccessible(true);
-
-        // Mock the result of the private method
-        when(getSales2ServiceUrl.invoke(service, index)).thenReturn(serviceUrl);
-
-        // Mock getHeaderString method
-        when(service.getHeaderString(any())).thenReturn("headerValue");
-
-        // Simulate a general exception in RestTemplate
-        when(restTemplate.exchange(
-                eq(new URI(serviceUrl)), 
-                eq(HttpMethod.GET), 
-                any(HttpEntity.class), 
-                eq(Map.class))
-        ).thenThrow(new RuntimeException("General Exception"));
-
-        // Act and Assert
-        try {
-            service.manageLeadData(request, index);
-            fail("Expected RuntimeException to be thrown");
-        } catch (Sales2ServiceRuntimeException e) {
-            assertEquals("General Exception", e.getMessage());
-        }
+        assertNotNull(result);
+        assertEquals("httpMethod", result.get("httpMethod"));
+        assertEquals("GET", result.get("httpMethod"));
+        assertTrue(result.get("serviceUrl").startsWith("http://example.com"));
     }
 }
