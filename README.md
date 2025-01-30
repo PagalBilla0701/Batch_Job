@@ -27,14 +27,14 @@ public class S2SOpportunityServiceImplTest {
 
     @Test
     public void testGetSales2ServiceUrl() throws Exception {
-        // Mock the `Param` object
-        Param mockParam = new Param("L9993");
-        mockParam.setKeys(new String[] {
+        // Create and initialize the `Param` object with proper arrays
+        Param mockParam = mock(Param.class);
+        when(mockParam.getKeys()).thenReturn(new String[] {
             "SALES_OPPORTUNITY_URL",
             "SALES_PITCHING_URL",
             "SALES_CALL_SUMMARY_URL"
         });
-        mockParam.setData(new String[] {
+        when(mockParam.getData()).thenReturn(new String[] {
             "http://opportunity.com",
             "http://pitching.com",
             "http://summary.com"
@@ -47,11 +47,20 @@ public class S2SOpportunityServiceImplTest {
         Method method = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
         method.setAccessible(true);
 
-        // Call the private method and verify the result
-        String url = (String) method.invoke(service, 0); // Pass index 0
-
+        // Test for index 0
+        String url = (String) method.invoke(service, 0);
         assertNotNull(url);
         assertEquals("http://opportunity.com", url);
+
+        // Test for index 1
+        url = (String) method.invoke(service, 1);
+        assertNotNull(url);
+        assertEquals("http://pitching.com", url);
+
+        // Test for index 2
+        url = (String) method.invoke(service, 2);
+        assertNotNull(url);
+        assertEquals("http://summary.com", url);
 
         // Verify that `paramRepository.getParam()` was called once
         verify(paramRepository, times(1)).getParam(any(Param.class));
