@@ -1,3 +1,25 @@
+import static org.mockito.Mockito.*;
+
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.RestTemplate;
+
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.junit.Assert.*;
+
 @RunWith(MockitoJUnitRunner.class)
 public class S2SOpportunityServiceImplTest {
 
