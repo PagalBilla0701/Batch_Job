@@ -1,5 +1,7 @@
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -8,8 +10,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
 
-import java.lang.reflect.Method;
+import java.io.IOException;
+import java.net.URI;
+import java.util.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class S2SOpportunityServiceImplTest {
@@ -18,7 +24,19 @@ public class S2SOpportunityServiceImplTest {
     private S2SOpportunityServiceImpl service;
 
     @Mock
+    private OpportunityPitchEntityDataRepository optyPitchRepo;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private ParamRepository paramRepository;
+
+    @Mock
+    private RestTemplate restTemplate;
+
+    @Mock
+    private ObjectMapper mapper;
 
     @Before
     public void setup() {
@@ -26,43 +44,81 @@ public class S2SOpportunityServiceImplTest {
     }
 
     @Test
-    public void testGetSales2ServiceUrl() throws Exception {
-        // Create and initialize the `Param` object with proper arrays
-        Param mockParam = mock(Param.class);
-        when(mockParam.getKeys()).thenReturn(new String[] {
-            "SALES_OPPORTUNITY_URL",
-            "SALES_PITCHING_URL",
-            "SALES_CALL_SUMMARY_URL"
-        });
-        when(mockParam.getData()).thenReturn(new String[] {
-            "http://opportunity.com",
-            "http://pitching.com",
-            "http://summary.com"
-        });
+    public void testManageLeadData_SuccessScenario() throws Exception {
+        // Mock request and response
+        Map<String, Object> request = new HashMap<>();
+        request.put("headerData", "testHeader");
+        request.put("key1", "value1");
 
-        // Mock the `paramRepository.getParam()` method
-        when(paramRepository.getParam(any(Param.class))).thenReturn(mockParam);
+        Map<String, Object> expectedResponse = new HashMap<>();
+        expectedResponse.put("responseKey", "responseValue");
 
-        // Use reflection to access the private method
-        Method method = S2SOpportunityServiceImpl.class.getDeclaredMethod("getSales2ServiceUrl", int.class);
-        method.setAccessible(true);
+        String serviceUrl = "http://test-service-url.com";
+        when(restTemplate.postForEntity(eq(serviceUrl), any(HttpEntity.class), eq(Map.class)))
+                .thenReturn(new ResponseEntity<>(expectedResponse, HttpStatus.OK));
 
-        // Test for index 0
-        String url = (String) method.invoke(service, 0);
-        assertNotNull(url);
-        assertEquals("http://opportunity.com", url);
+        // Mock getSales2ServiceUrl method
+        service = spy(service);
+        doReturn(serviceUrl).when(service).getSales2ServiceUrl(anyInt());
 
-        // Test for index 1
-        url = (String) method.invoke(service, 1);
-        assertNotNull(url);
-        assertEquals("http://pitching.com", url);
+        // Mock getHeaderString method
+        doReturn("mockHeader").when(service).getHeaderString(any());
 
-        // Test for index 2
-        url = (String) method.invoke(service, 2);
-        assertNotNull(url);
-        assertEquals("http://summary.com", url);
+        // Execute
+        Map<String, Object> actualResponse = service.manageLeadData(request, 1);
 
-        // Verify that `paramRepository.getParam()` was called once
-        verify(paramRepository, times(1)).getParam(any(Param.class));
+        // Verify
+        assertNotNull(actualResponse);
+        assertEquals("responseValue", actualResponse.get("responseKey"));
+        verify(restTemplate, times(1)).postForEntity(eq(serviceUrl), any(HttpEntity.class), eq(Map.class));
+    }
+
+    @Test(expected = Sales2ServiceRuntimeException.class)
+    public void testManageLeadData_InvalidResponseStatus() throws Exception {
+        // Mock request and response
+        Map<String, Object> request = new HashMap<>();
+        request.put("headerData", "testHeader");
+
+        String serviceUrl = "http://test-service-url.com";
+        when(restTemplate.postForEntity(eq(serviceUrl), any(HttpEntity.class), eq(Map.class)))
+                .thenReturn(new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR));
+
+        // Mock getSales2ServiceUrl method
+        service = spy(service);
+        doReturn(serviceUrl).when(service).getSales2ServiceUrl(anyInt());
+
+        // Mock getHeaderString method
+        doReturn("mockHeader").when(service).getHeaderString(any());
+
+        // Execute
+        service.manageLeadData(request, 1);
+    }
+
+    @Test(expected = Sales2ServiceRuntimeException.class)
+    public void testManageLeadData_IOException() throws Exception {
+        // Mock request
+        Map<String, Object> request = new HashMap<>();
+        request.put("headerData", "testHeader");
+
+        // Mock getSales2ServiceUrl method
+        service = spy(service);
+        doThrow(new IOException("IO Error")).when(service).getSales2ServiceUrl(anyInt());
+
+        // Execute
+        service.manageLeadData(request, 1);
+    }
+
+    @Test(expected = Sales2ServiceRuntimeException.class)
+    public void testManageLeadData_GenericException() throws Exception {
+        // Mock request
+        Map<String, Object> request = new HashMap<>();
+        request.put("headerData", "testHeader");
+
+        // Mock getSales2ServiceUrl method
+        service = spy(service);
+        doThrow(new Exception("Generic Error")).when(service).getSales2ServiceUrl(anyInt());
+
+        // Execute
+        service.manageLeadData(request, 1);
     }
 }
