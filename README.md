@@ -13,9 +13,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.lang.reflect.Method;
-import java.net.URI;
 import java.util.*;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -94,7 +92,7 @@ public class S2SOpportunityServiceImplTest {
         request.put("headerData", "testHeader");
 
         // Simulate an IOException when calling private method
-        doThrow(new IOException("IO Error")).when(service).getSales2ServiceUrl(anyInt());
+        doThrow(new IOException("IO Error")).when(service).getHeaderString(any());
 
         // Execute
         service.manageLeadData(request, 1);
@@ -107,7 +105,7 @@ public class S2SOpportunityServiceImplTest {
         request.put("headerData", "testHeader");
 
         // Simulate a generic exception when calling private method
-        doThrow(new Exception("Generic Error")).when(service).getSales2ServiceUrl(anyInt());
+        doThrow(new Exception("Generic Error")).when(service).getHeaderString(any());
 
         // Execute
         service.manageLeadData(request, 1);
