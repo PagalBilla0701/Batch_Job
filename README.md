@@ -1,51 +1,56 @@
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+
+import com.scb.cems.model.request.FavCustomerServiceRequest;
+import com.scb.cems.data.assembler.domain.SectionDataResponse;
+import com.scb.cems.servicehelper.FavouritesHelper;
+import com.scb.cems.central.beans.LoginBean;
+
+import org.junit.Before;
 import org.junit.Test;
-
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-
-import static org.junit.Assert.assertEquals;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 public class DashboardServiceImplTest {
 
-    @Test
-    public void testSortQuickLinksUsingReflection() throws Exception {
-        // Step 1: Create an instance of DashboardServiceImpl
-        DashboardServiceImpl dashboardService = new DashboardServiceImpl();
+    @Mock
+    private FavouritesHelper favouritesHelper;
 
-        // Step 2: Prepare test data
-        List<QuickLinks> quickLinks = new ArrayList<>();
-        quickLinks.add(new QuickLinks("Z-Link", "EXTERNAL", "https://zlink.com"));
-        quickLinks.add(new QuickLinks("A-Link", "EXTERNAL", "https://alink.com"));
-        quickLinks.add(new QuickLinks("M-Link", "EXTERNAL", "https://mlink.com"));
+    @InjectMocks
+    private DashboardServiceImpl dashboardService;
 
-        // Step 3: Access and invoke the private sortQuickLinks method using reflection
-        Method sortQuickLinksMethod = DashboardServiceImpl.class.getDeclaredMethod("sortQuickLinks", List.class);
-        sortQuickLinksMethod.setAccessible(true); // Allow access to the private method
-        sortQuickLinksMethod.invoke(dashboardService, quickLinks); // Invoke the method
-
-        // Step 4: Verify the results
-        assertEquals("A-Link", quickLinks.get(0).getTextValue());
-        assertEquals("M-Link", quickLinks.get(1).getTextValue());
-        assertEquals("Z-Link", quickLinks.get(2).getTextValue());
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
     }
 
-    // Mock QuickLinks class for testing
-    static class QuickLinks {
-        private String textValue;
-        private String linkType;
-        private String linkURL;
+    @Test
+    public void testGetFavouriteFullList() {
+        // Step 1: Mock input data
+        FavCustomerServiceRequest serviceRequest = new FavCustomerServiceRequest();
+        serviceRequest.setCustomerId("12345");
+        serviceRequest.setFavouriteType("SAVINGS");
 
-        public QuickLinks(String textValue, String linkType, String linkURL) {
-            this.textValue = textValue;
-            this.linkType = linkType;
-            this.linkURL = linkURL;
-        }
+        LoginBean loginBean = new LoginBean();
+        loginBean.setUserId("testUser");
 
-        public String getTextValue() {
-            return textValue;
-        }
+        // Step 2: Mock the response from FavouritesHelper
+        SectionDataResponse mockResponse = new SectionDataResponse();
+        mockResponse.setSuccess(true);
+        mockResponse.setMessage("Favourites fetched successfully.");
+
+        when(favouritesHelper.getFavouriteFullList(serviceRequest, loginBean)).thenReturn(mockResponse);
+
+        // Step 3: Call the method under test
+        SectionDataResponse response = dashboardService.getFavouriteFullList(serviceRequest, loginBean);
+
+        // Step 4: Verify the results
+        assertNotNull(response);
+        assertTrue(response.isSuccess());
+        assertEquals("Favourites fetched successfully.", response.getMessage());
+
+        // Step 5: Verify the interaction with the mocked dependency
+        verify(favouritesHelper, times(1)).getFavouriteFullList(serviceRequest, loginBean);
     }
 }
