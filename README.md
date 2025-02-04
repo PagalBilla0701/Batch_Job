@@ -27,30 +27,37 @@ public class DashboardServiceImplTest {
 
     @Test
     public void testGetFavouriteFullList() {
-        // Step 1: Mock input data
-        FavCustomerServiceRequest serviceRequest = new FavCustomerServiceRequest();
-        serviceRequest.setCustomerId("12345");
-        serviceRequest.setFavouriteType("SAVINGS");
+        // Step 1: Use the Builder pattern to create FavCustomerServiceRequest
+        FavCustomerServiceRequest serviceRequest = new FavCustomerServiceRequest.Builder()
+                .userName("testUser")
+                .type("SAVINGS")
+                .countryCode("IN")
+                .sort("date")
+                .sortOrder("asc")
+                .start(0)
+                .page(1)
+                .build();
 
+        // Step 2: Mock LoginBean
         LoginBean loginBean = new LoginBean();
         loginBean.setUserId("testUser");
 
-        // Step 2: Mock the response from FavouritesHelper
+        // Step 3: Mock the response from FavouritesHelper
         SectionDataResponse mockResponse = new SectionDataResponse();
         mockResponse.setSuccess(true);
         mockResponse.setMessage("Favourites fetched successfully.");
 
         when(favouritesHelper.getFavouriteFullList(serviceRequest, loginBean)).thenReturn(mockResponse);
 
-        // Step 3: Call the method under test
+        // Step 4: Call the method under test
         SectionDataResponse response = dashboardService.getFavouriteFullList(serviceRequest, loginBean);
 
-        // Step 4: Verify the results
+        // Step 5: Verify the results
         assertNotNull(response);
         assertTrue(response.isSuccess());
         assertEquals("Favourites fetched successfully.", response.getMessage());
 
-        // Step 5: Verify the interaction with the mocked dependency
+        // Step 6: Verify interaction with mocked dependency
         verify(favouritesHelper, times(1)).getFavouriteFullList(serviceRequest, loginBean);
     }
 }
