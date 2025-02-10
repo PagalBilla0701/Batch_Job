@@ -1,63 +1,120 @@
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+package com.scb.cems.serviceImpl;
 
-import com.scb.cems.model.request.FavCustomerServiceRequest;
-import com.scb.cems.data.assembler.domain.SectionDataResponse;
-import com.scb.cems.servicehelper.FavouritesHelper;
-import com.scb.cems.central.beans.LoginBean;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
-public class DashboardServiceImplTest {
+import com.scb.cems.formbeans.*;
+import com.scb.cems.util.Constants;
 
-    @Mock
-    private FavouritesHelper favouritesHelper;
+public class FormServiceImplTest {
 
-    @InjectMocks
-    private DashboardServiceImpl dashboardService;
+    private FormServiceImpl formService;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
+        formService = new FormServiceImpl();
     }
 
     @Test
-    public void testGetFavouriteFullList() {
-        // Step 1: Use the Builder pattern to create FavCustomerServiceRequest
-        FavCustomerServiceRequest serviceRequest = new FavCustomerServiceRequest.Builder()
-                .userName("testUser")
-                .type("SAVINGS")
-                .countryCode("IN")
-                .sort("date")
-                .sortOrder("asc")
-                .start(0)
-                .page(1)
-                .build();
+    public void testLoadPartialRepaymentInitialData() {
+        FormBase formBase = formService.loadPartialRepaymentInitialData();
 
-        // Step 2: Mock LoginBean
-        LoginBean loginBean = new LoginBean();
-        loginBean.setUserId("testUser");
+        assertNotNull(formBase);
+        assertEquals("DISPLAY", formBase.getStatus());
+        assertEquals("PARTIAL_REPAYMENT_COMPUTATION", formBase.getType());
+        assertNotNull(formBase.getData());
 
-        // Step 3: Mock the response from FavouritesHelper
-        SectionDataResponse mockResponse = new SectionDataResponse();
-        mockResponse.setSuccess(true);
-        mockResponse.setMessage("Favourites fetched successfully.");
+        PartialRepaymentForm prForm = (PartialRepaymentForm) formBase.getData();
+        assertEquals("Mortgage", prForm.getAccountType());
+        assertEquals(Long.valueOf(10L), prForm.getEmployeeRate());
+        assertEquals(Long.valueOf(10000L), prForm.getPrincipal());
+    }
 
-        when(favouritesHelper.getFavouriteFullList(serviceRequest, loginBean)).thenReturn(mockResponse);
+    @Test
+    public void testLoadC400NoteInitialData() {
+        C400NoteForm c400NoteForm = formService.loadC400NoteInitialData("ACTIVE");
 
-        // Step 4: Call the method under test
-        SectionDataResponse response = dashboardService.getFavouriteFullList(serviceRequest, loginBean);
+        assertNotNull(c400NoteForm);
+        assertEquals("1010101", c400NoteForm.getOwner());
+        assertNotNull(c400NoteForm.getCreatedDate());
+        assertEquals("", c400NoteForm.getDescription());
+    }
 
-        // Step 5: Verify the results
-        assertNotNull(response);
-        assertTrue(response.isSuccess());
-        assertEquals("Favourites fetched successfully.", response.getMessage());
+    @Test
+    public void testLoadRisNoteInitialData() {
+        RisNoteForm risNoteForm = formService.loadR1sNoteInitialData("ACTIVE");
 
-        // Step 6: Verify interaction with mocked dependency
-        verify(favouritesHelper, times(1)).getFavouriteFullList(serviceRequest, loginBean);
+        assertNotNull(risNoteForm);
+        assertEquals("1010101", risNoteForm.getCreatedBy());
+        assertNotNull(risNoteForm.getCreatedDate());
+        assertEquals("", risNoteForm.getDescription());
+    }
+
+    @Test
+    public void testLoadCCMSNoteInitialData() {
+        CCMSNoteForm ccmsNoteForm = formService.loadCCMSNoteInitialData("ACTIVE");
+
+        assertNotNull(ccmsNoteForm);
+        assertEquals("ADMIN", ccmsNoteForm.getCreatedBy());
+        assertNotNull(ccmsNoteForm.getCreatedDate());
+        assertNotNull(ccmsNoteForm.getActionCompleteIndicator());
+        assertEquals("CCMS Card Note Details", ccmsNoteForm.getTitle());
+    }
+
+    @Test
+    public void testLoadCCMSCustomerInitialData() {
+        CCMSCustomerForm ccmsCustomerForm = formService.loadCCMSCustomerInitialData("ACTIVE");
+
+        assertNotNull(ccmsCustomerForm);
+        assertEquals("ADMIN", ccmsCustomerForm.getCreatedBy());
+        assertNotNull(ccmsCustomerForm.getCreatedDate());
+        assertNotNull(ccmsCustomerForm.getActionCompleteIndicator());
+        assertEquals("CCMS Customer Note Details", ccmsCustomerForm.getTitle());
+    }
+
+    @Test
+    public void testLoadPartialRepaymentInitialData_NullCheck() {
+        FormBase formBase = formService.loadPartialRepaymentInitialData();
+        assertNotNull("FormBase should not be null", formBase);
+    }
+
+    @Test
+    public void testLoadC400NoteInitialData_Negative() {
+        C400NoteForm c400NoteForm = formService.loadC400NoteInitialData("INACTIVE");
+
+        assertNotNull(c400NoteForm);
+        assertNotEquals("Invalid Owner", c400NoteForm.getOwner());
+    }
+
+    @Test
+    public void testLoadRisNoteInitialData_Negative() {
+        RisNoteForm risNoteForm = formService.loadR1sNoteInitialData("INACTIVE");
+
+        assertNotNull(risNoteForm);
+        assertNotEquals("Invalid Created By", risNoteForm.getCreatedBy());
+    }
+
+    @Test
+    public void testLoadCCMSNoteInitialData_Negative() {
+        CCMSNoteForm ccmsNoteForm = formService.loadCCMSNoteInitialData("INACTIVE");
+
+        assertNotNull(ccmsNoteForm);
+        assertNotEquals("Invalid Title", ccmsNoteForm.getTitle());
+    }
+
+    @Test
+    public void testLoadCCMSCustomerInitialData_Negative() {
+        CCMSCustomerForm ccmsCustomerForm = formService.loadCCMSCustomerInitialData("INACTIVE");
+
+        assertNotNull(ccmsCustomerForm);
+        assertNotEquals("Invalid Title", ccmsCustomerForm.getTitle());
     }
 }
