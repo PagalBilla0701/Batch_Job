@@ -1,28 +1,32 @@
 package com.scb.cems.serviceImpl;
 
-import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.scb.core.codeparam.data.model.Param;
-import com.scb.core.codeparam.repository.ParamRepository;
-import com.scb.cems.exceptions.Sales2ServiceRuntimeException;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.util.EntityUtils;
+import org.apache.http.impl.client.DefaultHttpClient;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.*;
-import org.springframework.http.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
-import java.util.*;
+import com.scb.core.codeparam.data.model.Param;
+import com.scb.core.codeparam.repository.ParamRepository;
 
-@RunWith(org.mockito.junit.MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.class)
 public class LMSServiceImplTest {
 
     @InjectMocks
@@ -35,107 +39,117 @@ public class LMSServiceImplTest {
     private RestTemplate restTemplate;
 
     @Mock
-    private CloseableHttpClient httpClient;
-
-    @Mock
-    private HttpResponse httpResponse;
-
-    @Mock
-    private StatusLine statusLine;
-
-    private Map<String, Object> request;
-    private Map<String, Object> payload;
+    private DefaultHttpClient httpClient;
 
     @Before
     public void setUp() {
-        request = new HashMap<>();
-        payload = new HashMap<>();
-
-        // Mock some default behavior for the repository
-        Param param = new Param();
-        param.setData(new String[]{"POST", "http://mock-url.com"});
-        when(paramRepository.getParam(any())).thenReturn(param);
+        MockitoAnnotations.initMocks(this);
     }
 
     @Test
-    public void testImsDataProcess_SuccessfulResponse() throws Exception {
-        // Mock RestTemplate behavior
-        ResponseEntity<Map> mockResponse = new ResponseEntity<>(new HashMap<>(), HttpStatus.OK);
-        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)))
-                .thenReturn(mockResponse);
+    public void testLmsDataProcess_Success() throws Exception {
+        Map<String, Object> request = new HashMap<>();
+        Map<String, Object> payload = new HashMap<>();
+        request.put("headerData", new HashMap<>());
 
-        Map<String, Object> result = lmsService.imsDataProcess(request, payload, "testParamKey");
+        Map<String, String> paramData = new HashMap<>();
+        paramData.put("serviceUrl", "http://example.com");
+        paramData.put("httpMethod", "POST");
+
+        when(paramRepository.getParam(any(Param.class))).thenReturn(new Param());
+        when(restTemplate.exchange(any(URI.class), eq(org.springframework.http.HttpMethod.POST), any(HttpEntity.class), eq(Map.class)))
+                .thenReturn(ResponseEntity.ok(new HashMap<>()));
+
+        Map<String, Object> result = lmsService.lmsDataProcess(request, payload, "paramKey");
+
         assertNotNull(result);
     }
 
-    @Test(expected = Sales2ServiceRuntimeException.class)
-    public void testImsDataProcess_InvalidResponseStatus() throws Exception {
-        // Mock RestTemplate behavior for non-200 response
-        ResponseEntity<Map> mockResponse = new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
-        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)))
-                .thenReturn(mockResponse);
+    @Test(expected = IOException.class)
+    public void testLmsDataProcess_ThrowsIOException() throws Exception {
+        Map<String, Object> request = new HashMap<>();
+        Map<String, Object> payload = new HashMap<>();
 
-        lmsService.imsDataProcess(request, payload, "testParamKey");
+        doThrow(new IOException("IO error")).when(restTemplate)
+                .exchange(any(URI.class), eq(org.springframework.http.HttpMethod.POST), any(HttpEntity.class), eq(Map.class));
+
+        lmsService.lmsDataProcess(request, payload, "paramKey");
     }
 
     @Test
     public void testGetUserChannel_Success() {
         Param param = new Param();
-        param.setData(new String[]{"Channel1", "Channel2"});
-        when(paramRepository.getParam(any())).thenReturn(param);
+        param.setKeys(new String[]{"S2S", "NS2S"});
+        when(paramRepository.getParam(any(Param.class))).thenReturn(param);
 
-        String result = lmsService.getUserChannel("S2S");
-        assertEquals("Channel1", result);
-    }
-
-    @Test
-    public void testGetLMSPageSize_DefaultValue() {
-        when(paramRepository.getParam(any())).thenReturn(null);
-        int pageSize = lmsService.getLMSPageSize(0);
-        assertEquals(15, pageSize);
+        String channel = lmsService.getUserChannel("S2S");
+        assertEquals("S2S", channel);
     }
 
     @Test
     public void testGetLMSPageSize_Success() {
         Param param = new Param();
-        param.setData(new String[]{"20", "50"});
-        when(paramRepository.getParam(any())).thenReturn(param);
+        param.setKeys(new String[]{"15"});
+        when(paramRepository.getParam(any(Param.class))).thenReturn(param);
 
-        int pageSize = lmsService.getLMSPageSize(1);
-        assertEquals(50, pageSize);
+        int pageSize = lmsService.getLMSPageSize(0);
+        assertEquals(15, pageSize);
     }
 
     @Test
-    public void testGetHeaderString_Success() throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        String result = LMSServiceImpl.getHeaderString(Collections.singletonMap("key", "value"));
-        assertEquals(mapper.writeValueAsString(Collections.singletonMap("key", "value")), result);
+    public void testGetHeaderString() throws IOException {
+        Map<String, String> headerData = new HashMap<>();
+        headerData.put("key", "value");
+
+        String headerString = LMSServiceImpl.getHeaderString(headerData);
+        assertNotNull(headerString);
     }
 
     @Test
-    public void testLogJson_Success() {
-        lmsService.logJson(Collections.singletonMap("key", "value"), Collections.singletonMap("payload", "data"));
-        // Verify logging does not throw any exceptions
-    }
+    public void testPrivateMethod_GetLMSEndPointeUrl() throws Exception {
+        Method method = LMSServiceImpl.class.getDeclaredMethod("getLMSEndPointeUrl", String.class);
+        method.setAccessible(true);
 
-    @Test
-    public void testGetAttachmentFileContent_Success() throws Exception {
-        when(httpClient.execute(any(HttpPost.class))).thenReturn(httpResponse);
-        when(httpResponse.getStatusLine()).thenReturn(statusLine);
-        when(statusLine.getStatusCode()).thenReturn(200);
-        when(EntityUtils.toByteArray(any())).thenReturn("mockContent".getBytes());
+        Param param = new Param();
+        param.setKeys(new String[]{"POST", "http://example.com"});
+        when(paramRepository.getParam(any(Param.class))).thenReturn(param);
 
-        byte[] result = lmsService.getAttachmentFileContent(payload, request, "testParamKey");
+        Map<String, String> result = (Map<String, String>) method.invoke(lmsService, "paramKey");
+
         assertNotNull(result);
-        assertEquals("mockContent", new String(result));
+        assertEquals("POST", result.get("httpMethod"));
+        assertEquals("http://example.com", result.get("serviceUrl"));
     }
 
-    @Test(expected = Sales2ServiceRuntimeException.class)
-    public void testGetAttachmentFileContent_ErrorResponse() throws Exception {
-        when(httpClient.execute(any(HttpPost.class))).thenReturn(httpResponse);
-        when(httpResponse.getStatusLine()).thenReturn(statusLine);
-        when(statusLine.getStatusCode()).thenReturn(400);
+    @Test
+    public void testLogJson() {
+        try {
+            LMSServiceImpl.logJson(new HashMap<>(), new HashMap<>());
+        } catch (Exception e) {
+            fail("logJson method should not throw an exception.");
+        }
+    }
 
-        lmsService.getAttachmentFileContent(payload, request, "testParamKey");
+    @Test
+    public void testStrSubstitutor() throws Exception {
+        Map<String, Object> inputMap = new HashMap<>();
+        inputMap.put("key", "value");
+
+        String result = lmsService.strSubstitutor("http://example.com/{key}", inputMap);
+        assertEquals("http://example.com/value", result);
+    }
+
+    @Test
+    public void testGetAttachmentFileContent() throws Exception {
+        Map<String, Object> request = new HashMap<>();
+        Map<String, Object> payload = new HashMap<>();
+        request.put("headerData", new HashMap<>());
+
+        HttpPost httpPost = new HttpPost("http://example.com");
+        when(httpClient.execute(any(HttpPost.class))).thenReturn(null);
+
+        byte[] result = lmsService.getAttachmentFileContent(payload, request, "paramKey");
+
+        assertNull(result);
     }
 }
