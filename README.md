@@ -1,70 +1,76 @@
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+import org.junit.Before;
 import org.junit.Test;
-import java.net.URLEncoder;
-import java.util.HashMap;
-import java.util.Map;
 
-public class StrSubstitutorTest {
+public class UserChannelServiceTest {
 
-    @Test
-    public void testStrSubstitutor_Success() throws Exception {
-        // Arrange
-        String actualUrl = "http://example.com/api?param1=${param1}&param2=${param2}";
-        Map<String, Object> inputMap = new HashMap<>();
-        inputMap.put("param1", "value1");
-        inputMap.put("param2", "value with spaces");
+    private UserChannelService userChannelService;
+    private ParamRepository paramRepository; // Mocked dependency
 
-        // Act
-        String result = strSubstitutor(actualUrl, inputMap);
-
-        // Assert
-        String expectedUrl = "http://example.com/api?param1=" + URLEncoder.encode("value1", "UTF-8")
-                            + "&param2=" + URLEncoder.encode("value with spaces", "UTF-8");
-        assertEquals(expectedUrl, result);
+    @Before
+    public void setUp() {
+        paramRepository = mock(ParamRepository.class); // Mocking the repository
+        userChannelService = new UserChannelService(paramRepository); // Injecting mock dependency
     }
 
     @Test
-    public void testStrSubstitutor_EmptyInputMap() throws Exception {
+    public void testGetUserChannel_S2S() {
         // Arrange
-        String actualUrl = "http://example.com/api?param1=${param1}&param2=${param2}";
-        Map<String, Object> inputMap = new HashMap<>();
+        Param param = new Param("P9992");
+        Param resultParam = new Param("P9992");
+        resultParam.setData(new String[] { "Channel1", "Channel2" });
+
+        when(paramRepository.getParam(any(Param.class))).thenReturn(resultParam);
 
         // Act
-        String result = strSubstitutor(actualUrl, inputMap);
+        String channel = userChannelService.getUserChannel("S2S");
 
         // Assert
-        assertEquals(actualUrl, result);
+        assertEquals("Channel1", channel);
     }
 
-    @Test(expected = NullPointerException.class)
-    public void testStrSubstitutor_NullInputMap() throws Exception {
+    @Test
+    public void testGetUserChannel_NS2S() {
         // Arrange
-        String actualUrl = "http://example.com/api?param1=${param1}&param2=${param2}";
-        Map<String, Object> inputMap = null;
+        Param param = new Param("P9992");
+        Param resultParam = new Param("P9992");
+        resultParam.setData(new String[] { "Channel1", "Channel2" });
+
+        when(paramRepository.getParam(any(Param.class))).thenReturn(resultParam);
 
         // Act
-        strSubstitutor(actualUrl, inputMap);
+        String channel = userChannelService.getUserChannel("NS2S");
+
+        // Assert
+        assertEquals("Channel2", channel);
     }
 
-    @Test(expected = NullPointerException.class)
-    public void testStrSubstitutor_NullUrl() throws Exception {
+    @Test
+    public void testGetUserChannel_NullResults() {
         // Arrange
-        String actualUrl = null;
-        Map<String, Object> inputMap = new HashMap<>();
-        inputMap.put("param1", "value1");
+        when(paramRepository.getParam(any(Param.class))).thenReturn(null);
 
         // Act
-        strSubstitutor(actualUrl, inputMap);
+        String channel = userChannelService.getUserChannel("S2S");
+
+        // Assert
+        assertEquals("", channel);
     }
 
-    // Helper method for testing
-    public String strSubstitutor(String actualUrl, Map<String, Object> inputMap) throws Exception {
-        Map<String, String> nMap = new HashMap<>();
-        for (Map.Entry<String, Object> entry : inputMap.entrySet()) {
-            nMap.put(entry.getKey(), URLEncoder.encode(entry.getValue().toString(), "UTF-8"));
-        }
-        org.apache.commons.text.StrSubstitutor sub = new org.apache.commons.text.StrSubstitutor(nMap);
-        actualUrl = sub.replace(actualUrl);
-        return actualUrl;
+    @Test
+    public void testGetUserChannel_InvalidUserType() {
+        // Arrange
+        Param param = new Param("P9992");
+        Param resultParam = new Param("P9992");
+        resultParam.setData(new String[] { "Channel1", "Channel2" });
+
+        when(paramRepository.getParam(any(Param.class))).thenReturn(resultParam);
+
+        // Act
+        String channel = userChannelService.getUserChannel("INVALID");
+
+        // Assert
+        assertEquals("", channel);
     }
 }
