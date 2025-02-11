@@ -1,88 +1,70 @@
-import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
-
-import com.scb.cems.exceptions.Sales2ServiceRuntimeException;
-import com.scb.core.codeparam.data.model.Param;
-import com.scb.core.codeparam.repository.ParamRepository;
-
-import org.junit.Before;
 import org.junit.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.web.client.RestTemplate;
+import java.net.URLEncoder;
+import java.util.HashMap;
+import java.util.Map;
 
-import java.util.*;
+public class StrSubstitutorTest {
 
-public class LMSServiceImplTest {
+    @Test
+    public void testStrSubstitutor_Success() throws Exception {
+        // Arrange
+        String actualUrl = "http://example.com/api?param1=${param1}&param2=${param2}";
+        Map<String, Object> inputMap = new HashMap<>();
+        inputMap.put("param1", "value1");
+        inputMap.put("param2", "value with spaces");
 
-    @InjectMocks
-    private LMSServiceImpl lmsService;
+        // Act
+        String result = strSubstitutor(actualUrl, inputMap);
 
-    @Mock
-    private ParamRepository paramRepository;
-
-    @Mock
-    private RestTemplate restTemplate;
-
-    private List<MappingJackson2HttpMessageConverter> customMessageConverters;
-
-    @Before
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
-
-        // Mocking customMessageConverters
-        customMessageConverters = new ArrayList<>();
-        customMessageConverters.add(new MappingJackson2HttpMessageConverter());
-        lmsService.customMessageConverters = (List) customMessageConverters;
+        // Assert
+        String expectedUrl = "http://example.com/api?param1=" + URLEncoder.encode("value1", "UTF-8")
+                            + "&param2=" + URLEncoder.encode("value with spaces", "UTF-8");
+        assertEquals(expectedUrl, result);
     }
 
     @Test
-    public void testLmsDataProcess_Success() throws Exception {
-        // Mock input data
-        Map<String, Object> request = new HashMap<>();
-        Map<String, Object> payLoad = new HashMap<>();
-        request.put("headerData", "test-header");
+    public void testStrSubstitutor_EmptyInputMap() throws Exception {
+        // Arrange
+        String actualUrl = "http://example.com/api?param1=${param1}&param2=${param2}";
+        Map<String, Object> inputMap = new HashMap<>();
 
-        // Mock service URL from ParamRepository
-        Param param = new Param("URL17");
-        when(paramRepository.getParam(any(Param.class))).thenReturn(new Param(new String[]{"GET", "http://example.com"}));
+        // Act
+        String result = strSubstitutor(actualUrl, inputMap);
 
-        // Mock RestTemplate response
-        HttpHeaders headers = new HttpHeaders();
-        Map<String, Object> mockResponse = new HashMap<>();
-        mockResponse.put("key", "value");
-        ResponseEntity<Map> responseEntity = new ResponseEntity<>(mockResponse, HttpStatus.OK);
-
-        when(restTemplate.exchange(
-                any(),
-                eq(org.springframework.http.HttpMethod.GET),
-                any(),
-                eq(Map.class))
-        ).thenReturn(responseEntity);
-
-        // Execute method
-        Map<String, Object> response = lmsService.lmsDataProcess(request, payLoad, "paramKey");
-
-        // Validate result
-        assertNotNull(response);
-        assertEquals("value", response.get("key"));
+        // Assert
+        assertEquals(actualUrl, result);
     }
 
-    @Test(expected = Sales2ServiceRuntimeException.class)
-    public void testLmsDataProcess_Failure() throws Exception {
-        // Mock input data
-        Map<String, Object> request = new HashMap<>();
-        Map<String, Object> payLoad = new HashMap<>();
+    @Test(expected = NullPointerException.class)
+    public void testStrSubstitutor_NullInputMap() throws Exception {
+        // Arrange
+        String actualUrl = "http://example.com/api?param1=${param1}&param2=${param2}";
+        Map<String, Object> inputMap = null;
 
-        // Mock failure scenario
-        when(paramRepository.getParam(any(Param.class))).thenReturn(null);
+        // Act
+        strSubstitutor(actualUrl, inputMap);
+    }
 
-        // Execute method
-        lmsService.lmsDataProcess(request, payLoad, "paramKey");
+    @Test(expected = NullPointerException.class)
+    public void testStrSubstitutor_NullUrl() throws Exception {
+        // Arrange
+        String actualUrl = null;
+        Map<String, Object> inputMap = new HashMap<>();
+        inputMap.put("param1", "value1");
+
+        // Act
+        strSubstitutor(actualUrl, inputMap);
+    }
+
+    // Helper method for testing
+    public String strSubstitutor(String actualUrl, Map<String, Object> inputMap) throws Exception {
+        Map<String, String> nMap = new HashMap<>();
+        for (Map.Entry<String, Object> entry : inputMap.entrySet()) {
+            nMap.put(entry.getKey(), URLEncoder.encode(entry.getValue().toString(), "UTF-8"));
+        }
+        org.apache.commons.text.StrSubstitutor sub = new org.apache.commons.text.StrSubstitutor(nMap);
+        actualUrl = sub.replace(actualUrl);
+        return actualUrl;
     }
 }
