@@ -1,52 +1,39 @@
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.MockitoAnnotations;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-@RunWith(MockitoJUnitRunner.class)
-public class MyServiceTest {
+class UserServiceTest {
 
     @Mock
-    private MyRepository myRepository;
+    private ParamRepository paramRepository;
 
     @InjectMocks
-    private MyService myService;
+    private UserService userService;
 
-    @Before
-    public void setUp() {
-        // No initialization needed for Mockito
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    public void testGetUserChannel() {
-        // Mock repository response with valid data
-        List<String> mockData = Arrays.asList("Channel1", "Channel2");
-        when(myRepository.getData("P9992")).thenReturn(mockData);
+    void testGetUserChannel() {
+        // Mocking response
+        Param results = new Param("P9992");
+        results.setData(new String[]{"Channel_S2S", "Channel_NS2S"});
 
-        // Test for "S2S"
-        assertEquals("Channel1", myService.getUserChannel("S2S"));
+        when(paramRepository.getParam(any(Param.class))).thenReturn(results);
 
-        // Test for "NS2S"
-        assertEquals("Channel2", myService.getUserChannel("NS2S"));
+        // Execute and verify multiple cases in one test
+        assertEquals("Channel_S2S", userService.getUserChannel("S2S"), "S2S case failed");
+        assertEquals("Channel_NS2S", userService.getUserChannel("NS2S"), "NS2S case failed");
 
-        // Test for invalid userType
-        assertEquals("", myService.getUserChannel("INVALID_TYPE"));
-
-        // Mock repository response as empty list
-        when(myRepository.getData("P9992")).thenReturn(Collections.emptyList());
-        assertEquals("", myService.getUserChannel("S2S"));
-
-        // Mock repository response as null
-        when(myRepository.getData("P9992")).thenReturn(null);
-        assertEquals("", myService.getUserChannel("S2S"));
+        // Mock null response
+        when(paramRepository.getParam(any(Param.class))).thenReturn(null);
+        assertEquals("", userService.getUserChannel("S2S"), "Null response case failed");
     }
 }
