@@ -1,4 +1,4 @@
-   import static org.junit.Assert.*;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import java.lang.reflect.Method;
@@ -121,10 +121,46 @@ public class LoginServiceImplTest {
     }
 
     @Test
-    public void testPrivateMethod_UsingReflection() throws Exception {
+    public void testProcessSSOAuth_Success() {
+        LoginBean login = new LoginBean();
+        login.setUsername("testUser");
+
+        UserAuthenticationResponse response = new UserAuthenticationResponse();
+        response.setAuthorized(true);
+
+        when(ssoAuthorizationWorkflow.process(any(UserAuthenticationRequest.class))).thenReturn(response);
+
+        String result = loginService.processSSOAuth(login);
+        assertEquals("SUCCESS", result);
+    }
+
+    @Test
+    public void testProcessSSOAuth_Failure() {
+        LoginBean login = new LoginBean();
+        login.setUsername("testUser");
+
+        UserAuthenticationResponse response = new UserAuthenticationResponse();
+        response.setAuthorized(false);
+
+        when(ssoAuthorizationWorkflow.process(any(UserAuthenticationRequest.class))).thenReturn(response);
+
+        String result = loginService.processSSOAuth(login);
+        assertEquals("FAILED", result);
+    }
+
+    @Test
+    public void testPrivateMethod_GetTimeZone_UsingReflection() throws Exception {
         Method method = LoginServiceImpl.class.getDeclaredMethod("getTimeZone", String.class);
         method.setAccessible(true);
         String result = (String) method.invoke(loginService, "UTC");
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testPrivateMethod_ComputeHash_UsingReflection() throws Exception {
+        Method method = LoginServiceImpl.class.getDeclaredMethod("computeHash", String.class);
+        method.setAccessible(true);
+        String result = (String) method.invoke(loginService, "password123");
         assertNotNull(result);
     }
 }
