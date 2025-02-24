@@ -1,39 +1,68 @@
-import static org.junit.jupiter.api.Assertions.assertEquals;
+package com.scb.cems.serviceImpl;
+
 import static org.mockito.Mockito.*;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.support.SessionStatus;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-class UserServiceTest {
+import com.scb.cems.central.beans.LoginBean;
 
-    @Mock
-    private ParamRepository paramRepository;
+@RunWith(MockitoJUnitRunner.class)
+public class LoginServiceImplTest {
 
     @InjectMocks
-    private UserService userService;
+    private LoginServiceImpl loginService;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
+    @Mock
+    private ModelMap model;
+
+    @Mock
+    private RedirectAttributes redirectAttributes;
+
+    @Mock
+    private SessionStatus sessionStatus;
+
+    private static final Logger logger = LoggerFactory.getLogger(LoginServiceImplTest.class);
+
+    private LoginBean loginBean;
+
+    @Before
+    public void setUp() {
+        loginBean = new LoginBean();
     }
 
     @Test
-    void testGetUserChannel() {
-        // Mocking response
-        Param results = new Param("P9992");
-        results.setData(new String[]{"Channel_S2S", "Channel_NS2S"});
+    public void testLandingPage_AllCases() {
+        // 1. SME country test
+        loginBean.setCountry("SME_US");
+        loginService.landingPage(loginBean, "someError", model, redirectAttributes, sessionStatus);
+        assert loginBean.getCountry().equals("US");
 
-        when(paramRepository.getParam(any(Param.class))).thenReturn(results);
+        // 2. Non-SME country test
+        loginBean.setCountry("OTHER_UK");
+        loginService.landingPage(loginBean, "someError", model, redirectAttributes, sessionStatus);
+        assert loginBean.getCountry().equals("OTHER_UK");
 
-        // Execute and verify multiple cases in one test
-        assertEquals("Channel_S2S", userService.getUserChannel("S2S"), "S2S case failed");
-        assertEquals("Channel_NS2S", userService.getUserChannel("NS2S"), "NS2S case failed");
+        // 3. Null country test
+        loginBean.setCountry(null);
+        loginService.landingPage(loginBean, "someError", model, redirectAttributes, sessionStatus);
+        assert loginBean.getCountry() == null;
 
-        // Mock null response
-        when(paramRepository.getParam(any(Param.class))).thenReturn(null);
-        assertEquals("", userService.getUserChannel("S2S"), "Null response case failed");
+        // 4. Empty country test
+        loginBean.setCountry("");
+        loginService.landingPage(loginBean, "someError", model, redirectAttributes, sessionStatus);
+        assert loginBean.getCountry().equals("");
+
+        // Verify logging
+        verifyNoInteractions(model, redirectAttributes, sessionStatus);
     }
 }
