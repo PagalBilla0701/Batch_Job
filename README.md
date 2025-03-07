@@ -1,152 +1,154 @@
 package com.scb.cems.serviceImpl;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.net.URI;
+import java.util.*;
+import java.util.concurrent.*;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.ui.ModelMap;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
-import com.scb.cems.central.beans.LoginBean;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scb.cems.central.beans.UserBean;
-import com.scb.cems.central.services.login.action.UserAction;
-import com.scb.cems.central.services.login.model.UserProfile;
-import com.scb.cems.data.assembler.service.internal.Login2FAEDMIService;
-import com.scb.cems.workflow.authentication.context.UserAuthenticationRequest;
-import com.scb.cems.workflow.authentication.context.UserAuthenticationResponse;
-import com.scb.cems.workflow.processor.WorkflowEngine;
-import com.scb.core.codeparam.repository.CodeRepository;
+import com.scb.cems.exceptions.Sales2ServiceRuntimeException;
+import com.scb.cems.model.EventsEntityData;
+import com.scb.coms.model.LeadsDataRequestJson.Header;
+import com.scb.core.codeparam.data.model.Param;
 import com.scb.core.codeparam.repository.ParamRepository;
 
-@ExtendWith(MockitoExtension.class)
-class LoginServiceImplTest {
+import org.apache.commons.lang3.StringUtils;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.*;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.powermock.api.mockito.PowerMockito;
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
+
+@RunWith(MockitoJUnitRunner.class)
+public class S2SEventServiceImplTest {
 
     @InjectMocks
-    private LoginServiceImpl loginService;
-
-    @Mock
-    private WorkflowEngine authenticationWorkflow;
-
-    @Mock
-    private WorkflowEngine ssoAuthorizationWorkflow;
+    private S2SEventServiceImpl s2SEventService;
 
     @Mock
     private ParamRepository paramRepository;
 
     @Mock
-    private CodeRepository codeRepository;
+    private RestTemplate restTemplate;
 
-    @Mock
-    private UserAction userAction;
+    private UserBean mockUserBean;
+    private EventsEntityData mockEventEntity;
+    private Map<String, Object> mockRequest;
+    private Map<String, Object> mockPayload;
 
-    @Mock
-    private Login2FAEDMIService login2FAEDMIService;
+    @Before
+    public void setUp() {
+        mockUserBean = new UserBean();
+        mockUserBean.setCountryCode("IN");
+        mockUserBean.setInstanceCode("CB_SME");
+        mockUserBean.setRowId("12345");
+        mockUserBean.setPeoplewiseId("P123");
+        mockUserBean.setUserRole("Admin");
 
-    private LoginBean loginBean;
+        mockEventEntity = new EventsEntityData();
+        mockRequest = new HashMap<>();
+        mockPayload = new HashMap<>();
 
-    @BeforeEach
-    void setUp() {
-        loginBean = new LoginBean();
-        loginBean.setUsername("testUser");
-        loginBean.setPassword("testPass");
-        loginBean.setCountry("IN");
-        loginBean.setInstanceCode("SME");
+        s2SEventService = new S2SEventServiceImpl();
+        s2SEventService.paramRepository = paramRepository;
     }
 
     @Test
-    void testLandingPage_Success() {
-        ModelMap model = new ModelMap();
-        RedirectAttributes redirectAttributes = mock(RedirectAttributes.class);
+    public void testImsDataProcess_Success() throws Exception {
+        Map<String, String> mockParamData = new HashMap<>();
+        mockParamData.put("serviceUrl", "http://mock.url");
+        mockParamData.put("httpMethod", "POST");
 
-        UserBean userBean = new UserBean();
-        userBean.setPeoplewiseId("P12345");
+        when(paramRepository.getParam(any())).thenReturn(new Param("URL17"));
+        when(paramRepository.getParam(any()).getData()).thenReturn(new String[]{"POST", "http://mock.url"});
 
-        UserProfile userProfile = new UserProfile();
-        userProfile.setUserId("P12345");
+        ResponseEntity<Map> responseEntity = new ResponseEntity<>(Collections.singletonMap("success", true), HttpStatus.OK);
+        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class))).thenReturn(responseEntity);
 
-        when(userAction.findUserByPeoplewiseId(any(), any(), any())).thenReturn(userProfile);
+        Map<String, Object> response = s2SEventService.imsDataProcess(mockRequest, mockPayload, "EVENTEDIT");
 
-        String result = loginService.landingPage(loginBean, null, model, redirectAttributes, null);
+        assertNotNull(response);
+        assertTrue(response.containsKey("success"));
+    }
 
-        assertEquals("redirect:/central/dashboard.do", result);
+    @Test(expected = Sales2ServiceRuntimeException.class)
+    public void testImsDataProcess_Failure() throws Exception {
+        when(paramRepository.getParam(any())).thenReturn(null);
+
+        s2SEventService.imsDataProcess(mockRequest, mockPayload, "INVALID_KEY");
     }
 
     @Test
-    void testValidateOTP_Success() {
-        when(login2FAEDMIService.validateOTP("testUser", "123456", "IN")).thenReturn(true);
+    public void testMassUpdate_Success() throws Exception {
+        List<EventsEntityData> eventsList = Collections.singletonList(mockEventEntity);
 
-        Map<String, String> result = loginService.validateOTP(loginBean, "123456");
+        Map<String, Object> response = s2SEventService.massUpdate(mockUserBean, eventsList);
 
-        assertEquals("200", result.get("res-code"));
-        assertEquals("Success", result.get("res-desc"));
+        assertNotNull(response);
     }
 
     @Test
-    void testValidateOTP_Failure() {
-        when(login2FAEDMIService.validateOTP("testUser", "123456", "IN")).thenReturn(false);
+    public void testGetUserChannel() {
+        Param mockParam = new Param("P9992");
+        when(paramRepository.getParam(any())).thenReturn(mockParam);
+        when(paramRepository.getParam(any()).getData()).thenReturn(new String[]{"S2S_Channel", "NS2S_Channel"});
 
-        Map<String, String> result = loginService.validateOTP(loginBean, "123456");
-
-        assertEquals("400", result.get("res-code"));
-        assertEquals("Failed", result.get("res-desc"));
+        String result = s2SEventService.getUserChannel("S2S");
+        assertEquals("S2S_Channel", result);
     }
 
     @Test
-    void testAuthenticationAndAuthorization_Success() throws Exception {
-        ModelMap model = new ModelMap();
-        UserAuthenticationResponse response = new UserAuthenticationResponse();
-        response.setAuthorized(true);
+    public void testGetLMSPageSize() {
+        Param mockParam = new Param("P0054");
+        when(paramRepository.getParam(any())).thenReturn(mockParam);
+        when(paramRepository.getParam(any()).getData()).thenReturn(new String[]{"20"});
 
-        when(authenticationWorkflow.process(any(UserAuthenticationRequest.class)))
-                .thenReturn(response);
-
-        String result = loginService.authenticationAndAuthorization(loginBean, model);
-
-        assertEquals("login-country-selection", result);
+        int size = s2SEventService.getLMSPageSize(0);
+        assertEquals(20, size);
     }
 
     @Test
-    void testAuthenticationAndAuthorization_Failure() throws Exception {
-        ModelMap model = new ModelMap();
-        UserAuthenticationResponse response = new UserAuthenticationResponse();
-        response.setAuthorized(false);
+    public void testGetHeaderString() throws JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        String expectedJson = mapper.writeValueAsString(mockUserBean);
 
-        when(authenticationWorkflow.process(any(UserAuthenticationRequest.class)))
-                .thenReturn(response);
+        String actualJson = s2SEventService.getHeaderString(mockUserBean);
 
-        String result = loginService.authenticationAndAuthorization(loginBean, model);
-
-        assertEquals("login", result);
+        assertEquals(expectedJson, actualJson);
     }
 
     @Test
-    void testGetCountryURL_Success() {
-        UserProfile userProfile = new UserProfile();
-        userProfile.setCountryCode("IN");
+    public void testStrSubstitutor() throws Exception {
+        String url = "http://mock.service/{id}";
+        Map<String, Object> inputMap = new HashMap<>();
+        inputMap.put("id", "123");
 
-        when(userAction.findUserByPeoplewiseId(any(), any(), any())).thenReturn(userProfile);
+        String result = s2SEventService.strSubstitutor(url, inputMap);
+        assertEquals("http://mock.service/123", result);
+    }
 
-        Map<String, String> result = loginService.getCountryURL(loginBean, "SME");
+    @Test(expected = Exception.class)
+    public void testStrSubstitutor_Exception() throws Exception {
+        String url = "http://mock.service/{id}";
+        Map<String, Object> inputMap = new HashMap<>();
 
-        assertEquals("200", result.get("res-code"));
-        assertEquals("User Found", result.get("res-desc"));
+        s2SEventService.strSubstitutor(url, inputMap);
     }
 
     @Test
-    void testGetCountryURL_UserNotFound() {
-        when(userAction.findUserByPeoplewiseId(any(), any(), any())).thenReturn(null);
-
-        Map<String, String> result = loginService.getCountryURL(loginBean, "SME");
-
-        assertEquals("404", result.get("res-code"));
-        assertEquals("User Not Found", result.get("res-desc"));
+    public void testLogJson() {
+        try {
+            S2SEventServiceImpl.logJson(mockRequest, mockPayload);
+        } catch (Exception e) {
+            fail("Exception should not be thrown");
+        }
     }
 }
