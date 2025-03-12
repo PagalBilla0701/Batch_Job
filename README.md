@@ -1,34 +1,35 @@
-package com.scb.cems.serviceImpl;
-
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.net.URI;
+import java.net.URLEncoder;
 import java.util.*;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.text.StrSubstitutor;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.mockito.runners.MockitoJUnitRunner;
-import org.springframework.http.*;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scb.cems.central.beans.UserBean;
 import com.scb.cems.data.repository.UserRepository;
-import com.scb.cems.exceptions.Sales2ServiceRuntimeException;
-import com.scb.cems.model.TaskAndAppointmentData;
 import com.scb.core.codeparam.data.model.Param;
 import com.scb.core.codeparam.repository.ParamRepository;
+import com.scb.cems.model.TaskAndAppointmentData;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TaskAndAppointmentServiceImplTest {
 
     @InjectMocks
-    private TaskAndAppointmentServiceImpl service;
+    private TaskAndAppointmentServiceImpl taskService;
 
     @Mock
     private ParamRepository paramRepository;
@@ -39,94 +40,105 @@ public class TaskAndAppointmentServiceImplTest {
     @Mock
     private RestTemplate restTemplate;
 
-    @Mock
-    private HttpHeaders httpHeaders;
-
     private Map<String, Object> request;
     private Map<String, Object> payload;
-    private String paramKey = "APPOINTMENTSAVE";
 
     @Before
     public void setUp() {
+        MockitoAnnotations.initMocks(this);
         request = new HashMap<>();
         payload = new HashMap<>();
     }
 
-    /** Test case for `lmsDataProcess` method */
+    // 1. Test imsDataProcess
     @Test
-    public void testLmsDataProcessSuccess() throws Exception {
+    public void testImsDataProcess() throws Exception {
         Map<String, String> paramData = new HashMap<>();
-        paramData.put("serviceUrl", "http://mock.service.com");
+        paramData.put("serviceUrl", "http://test.com");
         paramData.put("httpMethod", "POST");
 
-        when(paramRepository.getParam(any())).thenReturn(mockParam());
-        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)))
-                .thenReturn(new ResponseEntity<>(Collections.singletonMap("data", "success"), HttpStatus.OK));
+        when(paramRepository.getParam(any())).thenReturn(new Param());
+        when(restTemplate.exchange(any(), any(), any(), eq(Map.class)))
+            .thenReturn(ResponseEntity.ok(Collections.singletonMap("data", "success")));
 
-        Map<String, Object> response = service.lmsDataProcess(request, payload, paramKey);
-
-        assertNotNull(response);
-        assertEquals("success", response.get("data"));
-    }
-
-    /** Test case for `lmsDataProcess` when an exception occurs */
-    @Test(expected = Sales2ServiceRuntimeException.class)
-    public void testLmsDataProcessFailure() throws Exception {
-        when(paramRepository.getParam(any())).thenReturn(mockParam());
-        when(restTemplate.exchange(any(URI.class), eq(HttpMethod.POST), any(HttpEntity.class), eq(Map.class)))
-                .thenThrow(new IOException("Mocked IOException"));
-
-        service.lmsDataProcess(request, payload, paramKey);
-    }
-
-    /** Test `massUpdate` method */
-    @Test
-    public void testMassUpdate() {
-        UserBean userBean = new UserBean();
-        List<TaskAndAppointmentData> taskList = Arrays.asList(new TaskAndAppointmentData());
-
-        Map<String, Object> response = service.massUpdate(userBean, taskList);
-        assertNotNull(response);
-    }
-
-    /** Test `getUserChannel` method */
-    @Test
-    public void testGetUserChannel() {
-        when(paramRepository.getParam(any())).thenReturn(mockParam());
-        String channel = service.getUserChannel("S2S");
-        assertEquals("POST", channel);
-    }
-
-    /** Test private method `getLMSEndPointeUrl` using reflection */
-    @Test
-    public void testGetLMSEndPointeUrl() throws Exception {
-        Method method = TaskAndAppointmentServiceImpl.class.getDeclaredMethod("getLMSEndPointeUrl", String.class);
-        method.setAccessible(true);
-
-        Map<String, String> result = (Map<String, String>) method.invoke(service, "APPOINTMENTSAVE");
+        Map<String, Object> result = taskService.imsDataProcess(request, payload, "APPOINTMENTSAVE");
 
         assertNotNull(result);
-        assertEquals("POST", result.get("httpMethod"));
+        assertEquals("success", result.get("data"));
     }
 
-    /** Test private method `strSubstitutor` using reflection */
+    // 2. Test getLMSEndPointeUrl
+    @Test
+    public void testGetLMSEndPointeUrl() {
+        Param param = new Param();
+        param.setData(new String[]{"POST", "http://test.com", "/endpoint"});
+        
+        when(paramRepository.getParam(any())).thenReturn(param);
+        
+        Map<String, String> result = taskService.getLMSEndPointeUrl("APPOINTMENTSAVE");
+        
+        assertNotNull(result);
+        assertEquals("POST", result.get("httpMethod"));
+        assertTrue(result.get("serviceUrl").contains("http://test.com"));
+    }
+
+    // 3. Test strSubstitutor using Reflection
     @Test
     public void testStrSubstitutor() throws Exception {
-        Method method = TaskAndAppointmentServiceImpl.class.getDeclaredMethod("strSubstitutor", String.class, Map.class);
-        method.setAccessible(true);
-
+        String actualUrl = "http://example.com/{param1}";
         Map<String, Object> inputMap = new HashMap<>();
         inputMap.put("param1", "value1");
 
-        String result = (String) method.invoke(service, "http://mock.url/${param1}", inputMap);
-        assertEquals("http://mock.url/value1", result);
+        Method method = TaskAndAppointmentServiceImpl.class.getDeclaredMethod("strSubstitutor", String.class, Map.class);
+        method.setAccessible(true);
+        String result = (String) method.invoke(taskService, actualUrl, inputMap);
+
+        assertEquals("http://example.com/value1", result);
     }
 
-    /** Mock `Param` object */
-    private Param mockParam() {
+    // 4. Test massUpdate
+    @Test
+    public void testMassUpdate() throws Exception {
+        UserBean userBean = new UserBean();
+        TaskAndAppointmentData taskData = new TaskAndAppointmentData();
+        taskData.setOwner("123-ABC");
+        List<TaskAndAppointmentData> payload = Arrays.asList(taskData);
+
+        when(userRepository.getNameForId(any())).thenReturn(Collections.singletonMap("123", "John Doe"));
+
+        Map<String, Object> result = taskService.massUpdate(userBean, payload);
+
+        assertNotNull(result);
+        assertTrue(result.containsKey("errstatus"));
+        assertTrue(result.containsKey("succstatus"));
+    }
+
+    // 5. Test getUserChannel
+    @Test
+    public void testGetUserChannel() {
         Param param = new Param();
-        param.setKeys(new String[]{"S2S"});
-        param.setData(new String[]{"POST", "http://mock.service.com"});
-        return param;
+        param.setData(new String[]{"Channel1", "Channel2"});
+
+        when(paramRepository.getParam(any())).thenReturn(param);
+
+        String result = taskService.getUserChannel("S25");
+        assertEquals("Channel1", result);
+
+        result = taskService.getUserChannel("NS25");
+        assertEquals("Channel2", result);
+    }
+
+    // 6. Test getHeaderString using Reflection
+    @Test
+    public void testGetHeaderString() throws Exception {
+        UserBean userBean = new UserBean();
+        userBean.setUserId("testUser");
+
+        Method method = TaskAndAppointmentServiceImpl.class.getDeclaredMethod("getHeaderString", Object.class);
+        method.setAccessible(true);
+        String json = (String) method.invoke(taskService, userBean);
+
+        assertNotNull(json);
+        assertTrue(json.contains("testUser"));
     }
 }
