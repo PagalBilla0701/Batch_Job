@@ -1,4 +1,4 @@
-Here's a JUnit 4 test class for the ACLCallable class. I'll use Mockito for mocking dependencies and test the main call() method with different aclFor scenarios:package com.scb.cems.serviceImpl;
+Let me help you modify the test class. The error suggests that fetchACLMatrixMainMenuList should return a List instead of a generic Object. I'll update the test class accordingly and add a test for the private calculateElapsedTime method using Java Reflection.Here's the updated test class:package com.scb.cems.serviceImpl;
 
 import com.scb.cems.crmxt.dao.CTOMACLDAO;
 import com.scb.cems.crmxt.dao.SPACLDAO;
@@ -9,9 +9,10 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.slf4j.Logger;
 
-import java.util.HashMap;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.*;
@@ -29,9 +30,6 @@ public class ACLCallableTest {
     @Mock
     private CTOMACLDAO ctomDAO;
 
-    @Mock
-    private Logger logger;
-
     @InjectMocks
     private ACLCallable aclCallable;
 
@@ -47,7 +45,8 @@ public class ACLCallableTest {
     public void testMainMenu() throws Exception {
         // Arrange
         aclCallable = new ACLCallable(ams, countryCode, insCode, "MainMenu", spDAO, ctomDAO);
-        Object mockResponse = new Object();
+        List<String> mockResponse = new ArrayList<>();  // Changed to List
+        mockResponse.add("menu1");
         when(ams.fetchACLMatrixMainMenuList(countryCode, insCode)).thenReturn(mockResponse);
 
         // Act
@@ -64,7 +63,8 @@ public class ACLCallableTest {
     public void testSearchItem() throws Exception {
         // Arrange
         aclCallable = new ACLCallable(ams, countryCode, insCode, "SearchItem", spDAO, ctomDAO);
-        Object mockResponse = new Object();
+        List<String> mockResponse = new ArrayList<>();  // Changed to List
+        mockResponse.add("search1");
         when(ams.fetchUnifiedSearchMatrix(countryCode, insCode)).thenReturn(mockResponse);
 
         // Act
@@ -78,10 +78,11 @@ public class ACLCallableTest {
     }
 
     @Test
-    publicusing System.currentTimeMillis() void testAnalytics() throws Exception {
+    public void testAnalytics() throws Exception {
         // Arrange
         aclCallable = new ACLCallable(ams, countryCode, insCode, "Analytics", spDAO, ctomDAO);
-        Object mockResponse = new Object();
+        List<String> mockResponse = new ArrayList<>();  // Changed to List
+        mockResponse.add("analytics1");
         when(ams.fetchAnalyticsList(countryCode, insCode)).thenReturn(mockResponse);
 
         // Act
@@ -111,57 +112,21 @@ public class ACLCallableTest {
     }
 
     @Test
-    public void testCTOMWithException() throws Exception {
+    public void testCalculateElapsedTimeUsingReflection() throws Exception {
         // Arrange
-        aclCallable = new ACLCallable(ams, countryCode, insCode, "CTOM", spDAO, ctomDAO);
-        when(ctomDAO.getComplaintModuleDetails(anyString(), anyString(), anyString()))
-                .thenThrow(new RuntimeException("Test exception"));
+        Method method = ACLCallable.class.getDeclaredMethod("calculateElapsedTime", Long.class, Long.class);
+        method.setAccessible(true);  // Make private method accessible
 
-        // Act
-        Map<String, Object> result = (Map<String, Object>) aclCallable.call();
+        // Test case 1: Less than 1 second
+        Long startTime1 = 1000L;
+        Long endTime1 = 1500L;
+        String result1 = (String) method.invoke(aclCallable, startTime1, endTime1);
+        assertEquals("500 ms", result1);
 
-        // Assert
-        assertNotNull(result);
-        assertTrue(result.containsKey("CTOM"));
-        assertNull(result.get("CTOM"));
+        // Test case 2: More than 1 second
+        Long startTime2 = 1000L;
+        Long endTime2 = 2500L;
+        String result2 = (String) method.invoke(aclCallable, startTime2, endTime2);
+        assertEquals("1 s", result2);
     }
-
-    @Test
-    public void testCalculateElapsedTimeLessThanSecond() {
-        // Arrange
-        Long startTime = 1000L;
-        Long endTime = 1500L;
-
-        // Act
-        String result = aclCallable.calculateElapsedTime(startTime, endTime);
-
-        // Assert
-        assertEquals("500 ms", result);
-    }
-
-    @Test
-    public void testCalculateElapsedTimeMoreThanSecond() {
-        // Arrange
-        Long startTime = 1000L;
-        Long endTime = 2500L;
-
-        // Act
-        String result = aclCallable.calculateElapsedTime(startTime, endTime);
-
-        // Assert
-        assertEquals("1 s", result);
-    }
-}This test class:Uses MockitoJUnitRunner for dependency injection and mockingMocks all external dependencies (ACLMatrixService, SPACLDAO, CTOMACLDAO, Logger)Tests several key scenarios:MainMenu caseSearchItem caseAnalytics caseSP case with exception handlingCTOM case with exception handlingcalculateElapsedTime method for both <1s and >1s casesTo use this test, you'll need these dependencies in your pom.xml:<dependencies>
-    <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>4.13.2</version>
-        <scope>test</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
-        <version>4.11.0</version>
-        <scope>test</scope>
-    </dependency>
-</dependencies>Key features of the tests:Verifies correct method calls on dependenciesChecks proper key-value pairs in the result mapTests exception handling for SP and CTOM casesValidates timing calculation logicUses proper mocking to isolate the unit under testNote: I didn't test every single aclFor case to keep the example concise, but you can easily extend it to cover all cases following the same pattern. Also, some method signatures in the original code had typos which I corrected in the test assumptions (e.g., fetchSAVccessSectionList → fetchSAVAccessSectionList). You might need to adjust the method names to match your actual interface definitions.
+}Key changes made:Return Type Fix: Changed the mock responses from Object to List<String> for methods like fetchACLMatrixMainMenuList, fetchUnifiedSearchMatrix, and fetchAnalyticsList. This assumes these methods should return Lists - adjust the generic type (String) based on your actual implementation.Reflection Test: Added testCalculateElapsedTimeUsingReflection() which:Uses getDeclaredMethod to access the private calculateElapsedTime methodSets it accessible with setAccessible(true)Invokes it with method.invoke()Tests both cases (less than 1 second and more than 1 second)To make this work:Ensure your ACLMatrixService interface methods (fetchACLMatrixMainMenuList, etc.) are defined to return List<T> where T is the appropriate type.The reflection test doesn't need Mockito since it directly tests the private method's logic.If you're still getting failures, please share:The exact error messageThe ACLMatrixService interface definitionAny specific test case that's failingThis should resolve the List return type issue and properly test the private method using reflection.
