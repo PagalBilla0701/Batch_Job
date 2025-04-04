@@ -1,7 +1,8 @@
-   package com.scb.cems.serviceImpl;
+package com.scb.cems.serviceImpl;
 
 import com.scb.cems.crmxt.dao.CTOMACLDAO;
 import com.scb.cems.crmxt.dao.SPACLDAO;
+import com.scb.cems.crmxt.model.ACLMatrixMainMenu;  // Import actual class
 import com.scb.cems.service.ACLMatrixService;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,20 +37,6 @@ public class ACLCallableTest {
     private final String countryCode = "US";
     private final String insCode = "123";
 
-    // Assuming ACLMatrixMainMenu is a class in your project
-    private static class ACLMatrixMainMenu {
-        // Add fields and methods as per your actual class definition
-        private String menuName;
-
-        public ACLMatrixMainMenu(String menuName) {
-            this.menuName = menuName;
-        }
-
-        public String getMenuName() {
-            return menuName;
-        }
-    }
-
     @Before
     public void setUp() {
         aclCallable = new ACLCallable(ams, countryCode, insCode, "MainMenu", spDAO, ctomDAO);
@@ -60,7 +47,10 @@ public class ACLCallableTest {
         // Arrange
         aclCallable = new ACLCallable(ams, countryCode, insCode, "MainMenu", spDAO, ctomDAO);
         List<ACLMatrixMainMenu> mockResponse = new ArrayList<>();
-        mockResponse.add(new ACLMatrixMainMenu("menu1"));
+        ACLMatrixMainMenu menu = new ACLMatrixMainMenu();
+        menu.setRoleName("ROLE_ADMIN");
+        menu.setMenuName("Dashboard");
+        mockResponse.add(menu);
         when(ams.fetchACLMatrixMainMenuList(eq(countryCode), eq(insCode))).thenReturn(mockResponse);
 
         // Act
@@ -77,9 +67,11 @@ public class ACLCallableTest {
     public void testSearchItem() throws Exception {
         // Arrange
         aclCallable = new ACLCallable(ams, countryCode, insCode, "SearchItem", spDAO, ctomDAO);
-        // Assuming fetchUnifiedSearchMatrix also returns List<ACLMatrixMainMenu>
         List<ACLMatrixMainMenu> mockResponse = new ArrayList<>();
-        mockResponse.add(new ACLMatrixMainMenu("search1"));
+        ACLMatrixMainMenu menu = new ACLMatrixMainMenu();
+        menu.setRoleName("ROLE_USER");
+        menu.setMenuName("Search");
+        mockResponse.add(menu);
         when(ams.fetchUnifiedSearchMatrix(eq(countryCode), eq(insCode))).thenReturn(mockResponse);
 
         // Act
@@ -96,9 +88,11 @@ public class ACLCallableTest {
     public void testAnalytics() throws Exception {
         // Arrange
         aclCallable = new ACLCallable(ams, countryCode, insCode, "Analytics", spDAO, ctomDAO);
-        // Assuming fetchAnalyticsList also returns List<ACLMatrixMainMenu>
         List<ACLMatrixMainMenu> mockResponse = new ArrayList<>();
-        mockResponse.add(new ACLMatrixMainMenu("analytics1"));
+        ACLMatrixMainMenu menu = new ACLMatrixMainMenu();
+        menu.setRoleName("ROLE_ANALYST");
+        menu.setMenuName("Analytics");
+        mockResponse.add(menu);
         when(ams.fetchAnalyticsList(eq(countryCode), eq(insCode))).thenReturn(mockResponse);
 
         // Act
@@ -126,3 +120,23 @@ public class ACLCallableTest {
         assertTrue(result.containsKey("SP"));
         assertNull(result.get("SP"));
     }
+
+    @Test
+    public void testCalculateElapsedTimeUsingReflection() throws Exception {
+        // Arrange
+        Method method = ACLCallable.class.getDeclaredMethod("calculateElapsedTime", Long.class, Long.class);
+        method.setAccessible(true);
+
+        // Test case 1: Less than 1 second
+        Long startTime1 = 1000L;
+        Long endTime1 = 1500L;
+        String result1 = (String) method.invoke(aclCallable, startTime1, endTime1);
+        assertEquals("500 ms", result1);
+
+        // Test case 2: More than 1 second
+        Long startTime2 = 1000L;
+        Long endTime2 = 2500L;
+        String result2 = (String) method.invoke(aclCallable, startTime2, endTime2);
+        assertEquals("1 s", result2);
+    }
+}
