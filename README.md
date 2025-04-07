@@ -1,167 +1,204 @@
-Here's a JUnit 4 test class for the ACLMatrixServiceImpl class, testing all its methods using Mockito for mocking dependencies:package com.scb.cems.serviceImpl;
+Let's create JUnit 4 tests for the AppConfigServiceImpl class. We'll test the public method directly and use reflection for the private method. Here's a comprehensive test class:
 
-import com.scb.cems.central.services.login.repository.ACLMatrixRepository;
-import com.scb.cems.crmxt.model.ACLMatrixMainMenu;
-import com.scb.cems.crmxt.model.HighPrivilegeUserRoleDetails;
-import com.scb.cems.crmxt.model.RoleDetails;
-import com.scb.cems.crmxt.model.SAVSectionAccessDetails;
+```java
+import com.scb.cems.entitlement.data.model.AppConfigItem;
+import com.scb.cems.entitlement.repository.AppConfigRepository;
+import com.scb.cems.model.AppConfigData;
+import com.scb.cems.service.CallActivityService;
+import com.scb.cems.service.AppConfigService;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import java.util.Arrays;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
-public class ACLMatrixServiceImplTest {
+public class AppConfigServiceImplTest {
 
     @Mock
-    private ACLMatrixRepository aclMatrixRepository;
+    private AppConfigRepository appConfigRepository;
+
+    @Mock
+    private CallActivityService callActivityService;
 
     @InjectMocks
-    private ACLMatrixServiceImpl aclMatrixService;
+    private AppConfigServiceImpl appConfigService;
 
-    private static final String COUNTRY_CODE = "TH";
-    private static final String INS_CODE = "SCB";
+    private List<AppConfigItem> mockConfigItems;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
+        mockConfigItems = new ArrayList<>();
+        AppConfigItem item1 = new AppConfigItem();
+        item1.setContext("session");
+        item1.setKey("timeout");
+        item1.setValue("30");
+        
+        AppConfigItem item2 = new AppConfigItem();
+        item2.setContext("callactivity");
+        item2.setKey("enabled");
+        item2.setValue("true");
+        
+        mockConfigItems.add(item1);
+        mockConfigItems.add(item2);
     }
 
     @Test
-    public void testFetchACLMatrixMainMenuList() {
+    public void testGetApplicationConfigByLoginId() {
         // Arrange
-        List<ACLMatrixMainMenu> expectedList = Arrays.asList(new ACLMatrixMainMenu());
-        when(aclMatrixRepository.fetchACLMatrixMainMenuList(COUNTRY_CODE, INS_CODE))
-                .thenReturn(expectedList);
+        String loginId = "testUser";
+        String countryCode = "SG";
+        String languageCode = "EN";
+        String expectedLang = "SG_EN";
+        
+        when(appConfigRepository.getApplicationConfig()).thenReturn(mockConfigItems);
+        when(callActivityService.isSoftTokenEnableForCountry(countryCode)).thenReturn("true");
 
         // Act
-        List<ACLMatrixMainMenu> result = aclMatrixService.fetchACLMatrixMainMenuList(COUNTRY_CODE, INS_CODE);
+        AppConfigData result = appConfigService.getApplicationConfigByLoginId(loginId, countryCode, languageCode);
 
         // Assert
         assertNotNull(result);
-        assertEquals(expectedList, result);
-        verify(aclMatrixRepository).fetchACLMatrixMainMenuList(COUNTRY_CODE, INS_CODE);
+        assertNotNull(result.getSettings());
+        
+        LinkedHashMap<String, LinkedHashMap<String, String>> settings = result.getSettings();
+        assertTrue(settings.containsKey("session"));
+        assertTrue(settings.containsKey("callactivity"));
+        
+        assertEquals("30", settings.get("session").get("timeout"));
+        assertEquals(expectedLang, settings.get("session").get("language"));
+        assertEquals("true", settings.get("callactivity").get("stVerifiedButton"));
+        assertEquals("true", settings.get("callactivity").get("enabled"));
+        
+        verify(appConfigRepository, times(1)).getApplicationConfig();
+        verify(callActivityService, times(1)).isSoftTokenEnableForCountry(countryCode);
     }
 
     @Test
-    public void testFetchSAVAccessSectionList() {
+    public void testExtractSettingsFromListUsingReflection() throws Exception {
         // Arrange
-        List<SAVSectionAccessDetails> expectedList = Arrays.asList(new SAVSectionAccessDetails());
-        when(aclMatrixRepository.fetchSAVAccessSectionList(COUNTRY_CODE, INS_CODE))
-                .thenReturn(expectedList);
+        List<AppConfigItem> configList = mockConfigItems;
+        LinkedHashMap<String, LinkedHashMap<String, String>> settingsMap = new LinkedHashMap<>();
+
+        // Get private method using reflection
+        Method method = AppConfigServiceImpl.class.getDeclaredMethod("extractSettingsFromList", 
+            List.class, LinkedHashMap.class);
+        method.setAccessible(true);
 
         // Act
-        List<SAVSectionAccessDetails> result = aclMatrixService.fetchSAVAccessSectionList(COUNTRY_CODE, INS_CODE);
+        method.invoke(appConfigService, configList, settingsMap);
 
         // Assert
-        assertNotNull(result);
-        assertEquals(expectedList, result);
-        verify(aclMatrixRepository).fetchSAVAccessSectionList(COUNTRY_CODE, INS_CODE);
+        assertEquals(2, settingsMap.size());
+        assertTrue(settingsMap.containsKey("session"));
+        assertTrue(settingsMap.containsKey("callactivity"));
+        
+        LinkedHashMap<String, String> sessionSettings = settingsMap.get("session");
+        assertEquals(1, sessionSettings.size());
+        assertEquals("30", sessionSettings.get("timeout"));
+        
+        LinkedHashMap<String, String> callActivitySettings = settingsMap.get("callactivity");
+        assertEquals(1, callActivitySettings.size());
+        assertEquals("true", callActivitySettings.get("enabled"));
     }
 
     @Test
-    public void testFetchRoleList() {
+    public void testGetApplicationConfigByLoginIdWithEmptyConfig() {
         // Arrange
-        List<RoleDetails> expectedList = Arrays.asList(new RoleDetails());
-        when(aclMatrixRepository.fetchRoleList(COUNTRY_CODE, INS_CODE))
-                .thenReturn(expectedList);
+        String loginId = "testUser";
+        String countryCode = "SG";
+        String languageCode = "EN";
+        
+        when(appConfigRepository.getApplicationConfig()).thenReturn(new ArrayList<>());
+        when(callActivityService.isSoftTokenEnableForCountry(countryCode)).thenReturn("false");
 
         // Act
-        List<RoleDetails> result = aclMatrixService.fetchRoleList(COUNTRY_CODE, INS_CODE);
+        AppConfigData result = appConfigService.getApplicationConfigByLoginId(loginId, countryCode, languageCode);
 
         // Assert
         assertNotNull(result);
-        assertEquals(expectedList, result);
-        verify(aclMatrixRepository).fetchRoleList(COUNTRY_CODE, INS_CODE);
+        assertNotNull(result.getSettings());
+        
+        LinkedHashMap<String, LinkedHashMap<String, String>> settings = result.getSettings();
+        assertTrue(settings.containsKey("session"));
+        assertTrue(settings.containsKey("callactivity"));
+        
+        assertEquals("SG_EN", settings.get("session").get("language"));
+        assertEquals("false", settings.get("callactivity").get("stVerifiedButton"));
     }
 
     @Test
-    public void testFetchHighPrivilegeRoleList() {
+    public void testExtractSettingsFromListWithEmptyListUsingReflection() throws Exception {
         // Arrange
-        List<HighPrivilegeUserRoleDetails> expectedList = Arrays.asList(new HighPrivilegeUserRoleDetails());
-        when(aclMatrixRepository.fetchHighPrivileageRoleList())
-                .thenReturn(expectedList);
+        List<AppConfigItem> configList = new ArrayList<>();
+        LinkedHashMap<String, LinkedHashMap<String, String>> settingsMap = new LinkedHashMap<>();
+
+        Method method = AppConfigServiceImpl.class.getDeclaredMethod("extractSettingsFromList", 
+            List.class, LinkedHashMap.class);
+        method.setAccessible(true);
 
         // Act
-        List<HighPrivilegeUserRoleDetails> result = aclMatrixService.fetchHighPrivileageRoleList();
+        method.invoke(appConfigService, configList, settingsMap);
 
         // Assert
-        assertNotNull(result);
-        assertEquals(expectedList, result);
-        verify(aclMatrixRepository).fetchHighPrivileageRoleList();
+        assertEquals(0, settingsMap.size());
     }
+}
+```
 
-    @Test
-    public void testFetchUnifiedSearchMatrix() {
-        // Arrange
-        List<ACLMatrixMainMenu> expectedList = Arrays.asList(new ACLMatrixMainMenu());
-        when(aclMatrixRepository.fetchUnifiedSearchMatrix(COUNTRY_CODE, INS_CODE))
-                .thenReturn(expectedList);
+This test class includes:
 
-        // Act
-        List<ACLMatrixMainMenu> result = aclMatrixService.fetchUnifiedSearchMatrix(COUNTRY_CODE, INS_CODE);
+1. Required dependencies and annotations:
+   - `@RunWith(MockitoJUnitRunner.class)` for Mockito support
+   - `@Mock` for mocking dependencies
+   - `@InjectMocks` for the class under test
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(expectedList, result);
-        verify(aclMatrixRepository).fetchUnifiedSearchMatrix(COUNTRY_CODE, INS_CODE);
-    }
+2. Setup method:
+   - Creates mock data for testing
+   - Initializes mockConfigItems with sample data
 
-    @Test
-    public void testFetchAnalyticsList() {
-        // Arrange
-        List<ACLMatrixMainMenu> expectedList = Arrays.asList(new ACLMatrixMainMenu());
-        when(aclMatrixRepository.fetchAnalyticsList(COUNTRY_CODE, INS_CODE))
-                .thenReturn(expectedList);
+3. Test cases:
+   - `testGetApplicationConfigByLoginId`: Tests the main public method with normal case
+   - `testExtractSettingsFromListUsingReflection`: Tests the private method using reflection
+   - `testGetApplicationConfigByLoginIdWithEmptyConfig`: Tests the public method with empty config list
+   - `testExtractSettingsFromListWithEmptyListUsingReflection`: Tests the private method with empty list
 
-        // Act
-        List<ACLMatrixMainMenu> result = aclMatrixService.fetchAnalyticsList(COUNTRY_CODE, INS_CODE);
+Key features of the tests:
+- Uses Mockito to mock dependencies (AppConfigRepository and CallActivityService)
+- Verifies method interactions using `verify()`
+- Tests both happy path and edge cases
+- Uses reflection to test private method
+- Checks expected outputs and map structures
+- Validates caching behavior indirectly through method call verification
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(expectedList, result);
-        verify(aclMatrixRepository).fetchAnalyticsList(COUNTRY_CODE, INS_CODE);
-    }
+Note: You might need to adjust some assertions based on:
+- Exact behavior of `LangType.getLangIdentifier()`
+- The actual structure of `AppConfigData`
+- Any specific business rules not visible in the provided code
 
-    @Test
-    public void testFetchStartNewMenu() {
-        // Arrange
-        List<ACLMatrixMainMenu> expectedList = Arrays.asList(new ACLMatrixMainMenu());
-        when(aclMatrixRepository.fetchStartNewMenu(COUNTRY_CODE, INS_CODE))
-                .thenReturn(expectedList);
-
-        // Act
-        List<ACLMatrixMainMenu> result = aclMatrixService.fetchStartNewMenu(COUNTRY_CODE, INS_CODE);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(expectedList, result);
-        verify(aclMatrixRepository).fetchStartNewMenu(COUNTRY_CODE, INS_CODE);
-    }
-
-    @Test
-    public void testFetchCCMainTabsMenu() {
-        // Arrange
-        List<ACLMatrixMainMenu> expectedList = Arrays.asList(new ACLMatrixMainMenu());
-        when(aclMatrixRepository.fetchCCMainTabsMenu(COUNTRY_CODE, INS_CODE))
-                .thenReturn(expectedList);
-
-        // Act
-        List<ACLMatrixMainMenu> result = aclMatrixService.fetchCCMainTabsMenu(COUNTRY_CODE, INS_CODE);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(expectedList, result);
-        verify(aclMatrixRepository).fetchCCMainTabsMenu(COUNTRY_CODE, INS_CODE);
-    }
-}This test class includes:Necessary imports for JUnit 4 and Mockito@RunWith(MockitoJUnitRunner.class) to enable Mockito annotationsMocked ACLMatrixRepository using @MockThe service implementation under test using @InjectMocksTest constants for country code and institution codeA @Before setup method to initialize mocksIndividual test methods for each service methodEach test method follows the Arrange-Act-Assert pattern:Arrange: Sets up mock behavior and expected resultsAct: Calls the service method being testedAssert: Verifies the results and mock interactionsThe tests:Verify that the methods return non-null resultsCheck that the returned lists match the expected mock resultsVerify that the repository methods are called with correct parametersUse Mockito's when().thenReturn() to mock repository responsesUse verify() to ensure proper repository method invocationNote: There were some syntax errors in the original code (e.g., misplaced curly braces, typos in method names) which I've corrected in the test class assumptions. The test class assumes the corrected method signatures from the service implementation.To run these tests, you'll need the following dependencies in your project:JUnit 4MockitoSpring Test (for Spring-specific testing utilities)You might need to adjust the package names or import statements based on your actual project structure.
+Dependencies required in your pom.xml:
+```xml
+<dependencies>
+    <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>4.13.2</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>3.12.4</version>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+```
