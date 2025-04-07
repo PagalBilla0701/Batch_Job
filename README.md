@@ -1,142 +1,167 @@
-package com.scb.cems.serviceImpl;
+Here's a JUnit 4 test class for the ACLMatrixServiceImpl class, testing all its methods using Mockito for mocking dependencies:package com.scb.cems.serviceImpl;
 
-import com.scb.cems.crmxt.dao.CTOMACLDAO;
-import com.scb.cems.crmxt.dao.SPACLDAO;
-import com.scb.cems.crmxt.model.ACLMatrixMainMenu;  // Import actual class
-import com.scb.cems.service.ACLMatrixService;
+import com.scb.cems.central.services.login.repository.ACLMatrixRepository;
+import com.scb.cems.crmxt.model.ACLMatrixMainMenu;
+import com.scb.cems.crmxt.model.HighPrivilegeUserRoleDetails;
+import com.scb.cems.crmxt.model.RoleDetails;
+import com.scb.cems.crmxt.model.SAVSectionAccessDetails;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import java.lang.reflect.Method;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
-public class ACLCallableTest {
+public class ACLMatrixServiceImplTest {
 
     @Mock
-    private ACLMatrixService ams;
-
-    @Mock
-    private SPACLDAO spDAO;
-
-    @Mock
-    private CTOMACLDAO ctomDAO;
+    private ACLMatrixRepository aclMatrixRepository;
 
     @InjectMocks
-    private ACLCallable aclCallable;
+    private ACLMatrixServiceImpl aclMatrixService;
 
-    private final String countryCode = "US";
-    private final String insCode = "123";
+    private static final String COUNTRY_CODE = "TH";
+    private static final String INS_CODE = "SCB";
 
     @Before
     public void setUp() {
-        aclCallable = new ACLCallable(ams, countryCode, insCode, "MainMenu", spDAO, ctomDAO);
+        MockitoAnnotations.initMocks(this);
     }
 
     @Test
-    public void testMainMenu() throws Exception {
+    public void testFetchACLMatrixMainMenuList() {
         // Arrange
-        aclCallable = new ACLCallable(ams, countryCode, insCode, "MainMenu", spDAO, ctomDAO);
-        List<ACLMatrixMainMenu> mockResponse = new ArrayList<>();
-        ACLMatrixMainMenu menu = new ACLMatrixMainMenu();
-        menu.setRoleName("ROLE_ADMIN");
-        menu.setMenuName("Dashboard");
-        mockResponse.add(menu);
-        when(ams.fetchACLMatrixMainMenuList(eq(countryCode), eq(insCode))).thenReturn(mockResponse);
+        List<ACLMatrixMainMenu> expectedList = Arrays.asList(new ACLMatrixMainMenu());
+        when(aclMatrixRepository.fetchACLMatrixMainMenuList(COUNTRY_CODE, INS_CODE))
+                .thenReturn(expectedList);
 
         // Act
-        Map<String, Object> result = aclCallable.call();
+        List<ACLMatrixMainMenu> result = aclMatrixService.fetchACLMatrixMainMenuList(COUNTRY_CODE, INS_CODE);
 
         // Assert
         assertNotNull(result);
-        assertTrue(result.containsKey("MainMenu"));
-        assertEquals(mockResponse, result.get("MainMenu"));
-        verify(ams).fetchACLMatrixMainMenuList(countryCode, insCode);
+        assertEquals(expectedList, result);
+        verify(aclMatrixRepository).fetchACLMatrixMainMenuList(COUNTRY_CODE, INS_CODE);
     }
 
     @Test
-    public void testSearchItem() throws Exception {
+    public void testFetchSAVAccessSectionList() {
         // Arrange
-        aclCallable = new ACLCallable(ams, countryCode, insCode, "SearchItem", spDAO, ctomDAO);
-        List<ACLMatrixMainMenu> mockResponse = new ArrayList<>();
-        ACLMatrixMainMenu menu = new ACLMatrixMainMenu();
-        menu.setRoleName("ROLE_USER");
-        menu.setMenuName("Search");
-        mockResponse.add(menu);
-        when(ams.fetchUnifiedSearchMatrix(eq(countryCode), eq(insCode))).thenReturn(mockResponse);
+        List<SAVSectionAccessDetails> expectedList = Arrays.asList(new SAVSectionAccessDetails());
+        when(aclMatrixRepository.fetchSAVAccessSectionList(COUNTRY_CODE, INS_CODE))
+                .thenReturn(expectedList);
 
         // Act
-        Map<String, Object> result = aclCallable.call();
+        List<SAVSectionAccessDetails> result = aclMatrixService.fetchSAVAccessSectionList(COUNTRY_CODE, INS_CODE);
 
         // Assert
         assertNotNull(result);
-        assertTrue(result.containsKey("SearchItem"));
-        assertEquals(mockResponse, result.get("SearchItem"));
-        verify(ams).fetchUnifiedSearchMatrix(countryCode, insCode);
+        assertEquals(expectedList, result);
+        verify(aclMatrixRepository).fetchSAVAccessSectionList(COUNTRY_CODE, INS_CODE);
     }
 
     @Test
-    public void testAnalytics() throws Exception {
+    public void testFetchRoleList() {
         // Arrange
-        aclCallable = new ACLCallable(ams, countryCode, insCode, "Analytics", spDAO, ctomDAO);
-        List<ACLMatrixMainMenu> mockResponse = new ArrayList<>();
-        ACLMatrixMainMenu menu = new ACLMatrixMainMenu();
-        menu.setRoleName("ROLE_ANALYST");
-        menu.setMenuName("Analytics");
-        mockResponse.add(menu);
-        when(ams.fetchAnalyticsList(eq(countryCode), eq(insCode))).thenReturn(mockResponse);
+        List<RoleDetails> expectedList = Arrays.asList(new RoleDetails());
+        when(aclMatrixRepository.fetchRoleList(COUNTRY_CODE, INS_CODE))
+                .thenReturn(expectedList);
 
         // Act
-        Map<String, Object> result = aclCallable.call();
+        List<RoleDetails> result = aclMatrixService.fetchRoleList(COUNTRY_CODE, INS_CODE);
 
         // Assert
         assertNotNull(result);
-        assertTrue(result.containsKey("Analytics"));
-        assertEquals(mockResponse, result.get("Analytics"));
-        verify(ams).fetchAnalyticsList(countryCode, insCode);
+        assertEquals(expectedList, result);
+        verify(aclMatrixRepository).fetchRoleList(COUNTRY_CODE, INS_CODE);
     }
 
     @Test
-    public void testSPWithException() throws Exception {
+    public void testFetchHighPrivilegeRoleList() {
         // Arrange
-        aclCallable = new ACLCallable(ams, countryCode, insCode, "SP", spDAO, ctomDAO);
-        when(spDAO.getServiceModuleDetails(anyString(), anyString(), anyString()))
-                .thenThrow(new RuntimeException("Test exception"));
+        List<HighPrivilegeUserRoleDetails> expectedList = Arrays.asList(new HighPrivilegeUserRoleDetails());
+        when(aclMatrixRepository.fetchHighPrivileageRoleList())
+                .thenReturn(expectedList);
 
         // Act
-        Map<String, Object> result = aclCallable.call();
+        List<HighPrivilegeUserRoleDetails> result = aclMatrixService.fetchHighPrivileageRoleList();
 
         // Assert
         assertNotNull(result);
-        assertTrue(result.containsKey("SP"));
-        assertNull(result.get("SP"));
+        assertEquals(expectedList, result);
+        verify(aclMatrixRepository).fetchHighPrivileageRoleList();
     }
 
     @Test
-    public void testCalculateElapsedTimeUsingReflection() throws Exception {
+    public void testFetchUnifiedSearchMatrix() {
         // Arrange
-        Method method = ACLCallable.class.getDeclaredMethod("calculateElapsedTime", Long.class, Long.class);
-        method.setAccessible(true);
+        List<ACLMatrixMainMenu> expectedList = Arrays.asList(new ACLMatrixMainMenu());
+        when(aclMatrixRepository.fetchUnifiedSearchMatrix(COUNTRY_CODE, INS_CODE))
+                .thenReturn(expectedList);
 
-        // Test case 1: Less than 1 second
-        Long startTime1 = 1000L;
-        Long endTime1 = 1500L;
-        String result1 = (String) method.invoke(aclCallable, startTime1, endTime1);
-        assertEquals("500 ms", result1);
+        // Act
+        List<ACLMatrixMainMenu> result = aclMatrixService.fetchUnifiedSearchMatrix(COUNTRY_CODE, INS_CODE);
 
-        // Test case 2: More than 1 second
-        Long startTime2 = 1000L;
-        Long endTime2 = 2500L;
-        String result2 = (String) method.invoke(aclCallable, startTime2, endTime2);
-        assertEquals("1 s", result2);
+        // Assert
+        assertNotNull(result);
+        assertEquals(expectedList, result);
+        verify(aclMatrixRepository).fetchUnifiedSearchMatrix(COUNTRY_CODE, INS_CODE);
     }
-}
+
+    @Test
+    public void testFetchAnalyticsList() {
+        // Arrange
+        List<ACLMatrixMainMenu> expectedList = Arrays.asList(new ACLMatrixMainMenu());
+        when(aclMatrixRepository.fetchAnalyticsList(COUNTRY_CODE, INS_CODE))
+                .thenReturn(expectedList);
+
+        // Act
+        List<ACLMatrixMainMenu> result = aclMatrixService.fetchAnalyticsList(COUNTRY_CODE, INS_CODE);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(expectedList, result);
+        verify(aclMatrixRepository).fetchAnalyticsList(COUNTRY_CODE, INS_CODE);
+    }
+
+    @Test
+    public void testFetchStartNewMenu() {
+        // Arrange
+        List<ACLMatrixMainMenu> expectedList = Arrays.asList(new ACLMatrixMainMenu());
+        when(aclMatrixRepository.fetchStartNewMenu(COUNTRY_CODE, INS_CODE))
+                .thenReturn(expectedList);
+
+        // Act
+        List<ACLMatrixMainMenu> result = aclMatrixService.fetchStartNewMenu(COUNTRY_CODE, INS_CODE);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(expectedList, result);
+        verify(aclMatrixRepository).fetchStartNewMenu(COUNTRY_CODE, INS_CODE);
+    }
+
+    @Test
+    public void testFetchCCMainTabsMenu() {
+        // Arrange
+        List<ACLMatrixMainMenu> expectedList = Arrays.asList(new ACLMatrixMainMenu());
+        when(aclMatrixRepository.fetchCCMainTabsMenu(COUNTRY_CODE, INS_CODE))
+                .thenReturn(expectedList);
+
+        // Act
+        List<ACLMatrixMainMenu> result = aclMatrixService.fetchCCMainTabsMenu(COUNTRY_CODE, INS_CODE);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(expectedList, result);
+        verify(aclMatrixRepository).fetchCCMainTabsMenu(COUNTRY_CODE, INS_CODE);
+    }
+}This test class includes:Necessary imports for JUnit 4 and Mockito@RunWith(MockitoJUnitRunner.class) to enable Mockito annotationsMocked ACLMatrixRepository using @MockThe service implementation under test using @InjectMocksTest constants for country code and institution codeA @Before setup method to initialize mocksIndividual test methods for each service methodEach test method follows the Arrange-Act-Assert pattern:Arrange: Sets up mock behavior and expected resultsAct: Calls the service method being testedAssert: Verifies the results and mock interactionsThe tests:Verify that the methods return non-null resultsCheck that the returned lists match the expected mock resultsVerify that the repository methods are called with correct parametersUse Mockito's when().thenReturn() to mock repository responsesUse verify() to ensure proper repository method invocationNote: There were some syntax errors in the original code (e.g., misplaced curly braces, typos in method names) which I've corrected in the test class assumptions. The test class assumes the corrected method signatures from the service implementation.To run these tests, you'll need the following dependencies in your project:JUnit 4MockitoSpring Test (for Spring-specific testing utilities)You might need to adjust the package names or import statements based on your actual project structure.
