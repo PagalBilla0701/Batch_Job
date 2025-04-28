@@ -1,204 +1,167 @@
-Let's create JUnit 4 tests for the AppConfigServiceImpl class. We'll test the public method directly and use reflection for the private method. Here's a comprehensive test class:
+package com.scb.cems.util;
 
-```java
-import com.scb.cems.entitlement.data.model.AppConfigItem;
-import com.scb.cems.entitlement.repository.AppConfigRepository;
-import com.scb.cems.model.AppConfigData;
-import com.scb.cems.service.CallActivityService;
-import com.scb.cems.service.AppConfigService;
+import com.scb.coms.data.assembler.enums.LangType;
+import com.scb.i18n.common.util.DBMessageSourceHelper;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-
-import static org.junit.Assert.*;
+import org.slf4j.Logger;
+import java.util.Locale;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
-public class AppConfigServiceImplTest {
+public class AppMessageSourceHelperTest {
 
     @Mock
-    private AppConfigRepository appConfigRepository;
+    private DBMessageSourceHelper messageSourceHelper;
 
     @Mock
-    private CallActivityService callActivityService;
+    private Logger logger;
 
     @InjectMocks
-    private AppConfigServiceImpl appConfigService;
+    private AppMessageSourceHelper appMessageSourceHelper;
 
-    private List<AppConfigItem> mockConfigItems;
+    private static final String APP_GROUP = "cems-central-web";
+    private static final String TEST_CODE = "test.code";
+    private static final String TEST_COUNTRY = "US";
+    private static final String TEST_LANGUAGE = "en";
+    private static final String TEST_DEFAULT_VALUE = "Default message";
+    private static final String EXPECTED_MESSAGE = "Translated message";
+    private static final String CODE_NOT_CONFIGURED = "Message for i18n key '%s' is not configured. [%s, %s, %s]";
 
     @Before
     public void setUp() {
-        mockConfigItems = new ArrayList<>();
-        AppConfigItem item1 = new AppConfigItem();
-        item1.setContext("session");
-        item1.setKey("timeout");
-        item1.setValue("30");
-        
-        AppConfigItem item2 = new AppConfigItem();
-        item2.setContext("callactivity");
-        item2.setKey("enabled");
-        item2.setValue("true");
-        
-        mockConfigItems.add(item1);
-        mockConfigItems.add(item2);
+        // Ensure logger is mocked
+        when(logger.isErrorEnabled()).thenReturn(true);
     }
 
     @Test
-    public void testGetApplicationConfigByLoginId() {
+    public void testGetMessageWithCode() {
         // Arrange
-        String loginId = "testUser";
-        String countryCode = "SG";
-        String languageCode = "EN";
-        String expectedLang = "SG_EN";
-        
-        when(appConfigRepository.getApplicationConfig()).thenReturn(mockConfigItems);
-        when(callActivityService.isSoftTokenEnableForCountry(countryCode)).thenReturn("true");
+        String expectedCodeNotConfigured = String.format(CODE_NOT_CONFIGURED, TEST_CODE, TEST_COUNTRY, TEST_LANGUAGE, APP_GROUP);
+        when(messageSourceHelper.getMessage(eq(TEST_CODE), eq(null), eq(expectedCodeNotConfigured), eq(TEST_COUNTRY.toUpperCase()), 
+                eq(LangType.getLang(TEST_COUNTRY, TEST_LANGUAGE)), eq(APP_GROUP), eq(null)))
+                .thenReturn(EXPECTED_MESSAGE);
 
         // Act
-        AppConfigData result = appConfigService.getApplicationConfigByLoginId(loginId, countryCode, languageCode);
+        String result = appMessageSourceHelper.getMessage(TEST_CODE);
 
         // Assert
-        assertNotNull(result);
-        assertNotNull(result.getSettings());
-        
-        LinkedHashMap<String, LinkedHashMap<String, String>> settings = result.getSettings();
-        assertTrue(settings.containsKey("session"));
-        assertTrue(settings.containsKey("callactivity"));
-        
-        assertEquals("30", settings.get("session").get("timeout"));
-        assertEquals(expectedLang, settings.get("session").get("language"));
-        assertEquals("true", settings.get("callactivity").get("stVerifiedButton"));
-        assertEquals("true", settings.get("callactivity").get("enabled"));
-        
-        verify(appConfigRepository, times(1)).getApplicationConfig();
-        verify(callActivityService, times(1)).isSoftTokenEnableForCountry(countryCode);
+        assertEquals(EXPECTED_MESSAGE, result);
+        verify(messageSourceHelper).getMessage(eq(TEST_CODE), eq(null), eq(expectedCodeNotConfigured), eq(TEST_COUNTRY.toUpperCase()), 
+                eq(LangType.getLang(TEST_COUNTRY, TEST_LANGUAGE)), eq(APP_GROUP), eq(null));
     }
 
     @Test
-    public void testExtractSettingsFromListUsingReflection() throws Exception {
+    public void testGetMessageWithCodeAndArgs() {
         // Arrange
-        List<AppConfigItem> configList = mockConfigItems;
-        LinkedHashMap<String, LinkedHashMap<String, String>> settingsMap = new LinkedHashMap<>();
-
-        // Get private method using reflection
-        Method method = AppConfigServiceImpl.class.getDeclaredMethod("extractSettingsFromList", 
-            List.class, LinkedHashMap.class);
-        method.setAccessible(true);
+        Object[] args = new Object[]{"arg1", "arg2"};
+        String expectedCodeNotConfigured = String.format(CODE_NOT_CONFIGURED, TEST_CODE, TEST_COUNTRY, TEST_LANGUAGE, APP_GROUP);
+        when(messageSourceHelper.getMessage(eq(TEST_CODE), eq(args), eq(expectedCodeNotConfigured), eq(TEST_COUNTRY.toUpperCase()), 
+                eq(LangType.getLang(TEST_COUNTRY, TEST_LANGUAGE)), eq(APP_GROUP), eq(null)))
+                .thenReturn(EXPECTED_MESSAGE);
 
         // Act
-        method.invoke(appConfigService, configList, settingsMap);
+        String result = appMessageSourceHelper.getMessage(TEST_CODE, args);
 
         // Assert
-        assertEquals(2, settingsMap.size());
-        assertTrue(settingsMap.containsKey("session"));
-        assertTrue(settingsMap.containsKey("callactivity"));
-        
-        LinkedHashMap<String, String> sessionSettings = settingsMap.get("session");
-        assertEquals(1, sessionSettings.size());
-        assertEquals("30", sessionSettings.get("timeout"));
-        
-        LinkedHashMap<String, String> callActivitySettings = settingsMap.get("callactivity");
-        assertEquals(1, callActivitySettings.size());
-        assertEquals("true", callActivitySettings.get("enabled"));
+        assertEquals(EXPECTED_MESSAGE, result);
+        verify(messageSourceHelper).getMessage(eq(TEST_CODE), eq(args), eq(expectedCodeNotConfigured), eq(TEST_COUNTRY.toUpperCase()), 
+                eq(LangType.getLang(TEST_COUNTRY, TEST_LANGUAGE)), eq(APP_GROUP), eq(null));
     }
 
     @Test
-    public void testGetApplicationConfigByLoginIdWithEmptyConfig() {
+    public void testGetMessageWithCodeArgsCountryAndLanguage() {
         // Arrange
-        String loginId = "testUser";
-        String countryCode = "SG";
-        String languageCode = "EN";
-        
-        when(appConfigRepository.getApplicationConfig()).thenReturn(new ArrayList<>());
-        when(callActivityService.isSoftTokenEnableForCountry(countryCode)).thenReturn("false");
+        Object[] args = new Object[]{"arg1"};
+        String countryCode = "TH";
+        String languageCode = "th";
+        String expectedCodeNotConfigured = String.format(CODE_NOT_CONFIGURED, TEST_CODE, countryCode, languageCode, APP_GROUP);
+        when(messageSourceHelper.getMessage(eq(TEST_CODE), eq(args), eq(expectedCodeNotConfigured), eq(countryCode.toUpperCase()), 
+                eq(LangType.getLang(countryCode, languageCode)), eq(APP_GROUP), eq(null)))
+                .thenReturn(EXPECTED_MESSAGE);
 
         // Act
-        AppConfigData result = appConfigService.getApplicationConfigByLoginId(loginId, countryCode, languageCode);
+        String result = appMessageSourceHelper.getMessage(TEST_CODE, args, countryCode, languageCode);
 
         // Assert
-        assertNotNull(result);
-        assertNotNull(result.getSettings());
-        
-        LinkedHashMap<String, LinkedHashMap<String, String>> settings = result.getSettings();
-        assertTrue(settings.containsKey("session"));
-        assertTrue(settings.containsKey("callactivity"));
-        
-        assertEquals("SG_EN", settings.get("session").get("language"));
-        assertEquals("false", settings.get("callactivity").get("stVerifiedButton"));
+        assertEquals(EXPECTED_MESSAGE, result);
+        verify(messageSourceHelper).getMessage(eq(TEST_CODE), eq(args), eq(expectedCodeNotConfigured), eq(countryCode.toUpperCase()), 
+                eq(LangType.getLang(countryCode, languageCode)), eq(APP_GROUP), eq(null));
     }
 
     @Test
-    public void testExtractSettingsFromListWithEmptyListUsingReflection() throws Exception {
+    public void testGetMessageWithCodeCountryAndLanguage() {
         // Arrange
-        List<AppConfigItem> configList = new ArrayList<>();
-        LinkedHashMap<String, LinkedHashMap<String, String>> settingsMap = new LinkedHashMap<>();
-
-        Method method = AppConfigServiceImpl.class.getDeclaredMethod("extractSettingsFromList", 
-            List.class, LinkedHashMap.class);
-        method.setAccessible(true);
+        String countryCode = "TH";
+        String languageCode = "th";
+        String expectedCodeNotConfigured = String.format(CODE_NOT_CONFIGURED, TEST_CODE, countryCode, languageCode, APP_GROUP);
+        when(messageSourceHelper.getMessage(eq(TEST_CODE), eq(null), eq(expectedCodeNotConfigured), eq(countryCode.toUpperCase()), 
+                eq(LangType.getLang(countryCode, languageCode)), eq(APP_GROUP), eq(null)))
+                .thenReturn(EXPECTED_MESSAGE);
 
         // Act
-        method.invoke(appConfigService, configList, settingsMap);
+        String result = appMessageSourceHelper.getMessage(TEST_CODE, countryCode, languageCode);
 
         // Assert
-        assertEquals(0, settingsMap.size());
+        assertEquals(EXPECTED_MESSAGE, result);
+        verify(messageSourceHelper).getMessage(eq(TEST_CODE), eq(null), eq(expectedCodeNotConfigured), eq(countryCode.toUpperCase()), 
+                eq(LangType.getLang(countryCode, languageCode)), eq(APP_GROUP), eq(null));
+    }
+
+    @Test
+    public void testGetMessageWithCodeDefaultValueCountryAndLanguage() {
+        // Arrange
+        String countryCode = "TH";
+        String languageCode = "th";
+        when(messageSourceHelper.getMessage(eq(TEST_CODE), eq(null), eq(TEST_DEFAULT_VALUE), eq(countryCode.toUpperCase()), 
+                eq(LangType.getLang(countryCode, languageCode)), eq(APP_GROUP), eq(null)))
+                .thenReturn(EXPECTED_MESSAGE);
+
+        // Act
+        String result = appMessageSourceHelper.getMessage(TEST_CODE, TEST_DEFAULT_VALUE, countryCode, languageCode);
+
+        // Assert
+        assertEquals(EXPECTED_MESSAGE, result);
+        verify(messageSourceHelper).getMessage(eq(TEST_CODE), eq(null), eq(TEST_DEFAULT_VALUE), eq(countryCode.toUpperCase()), 
+                eq(LangType.getLang(countryCode, languageCode)), eq(APP_GROUP), eq(null));
+    }
+
+    @Test
+    public void testGetMessageWithCodeDefaultValueAndLocale() {
+        // Arrange
+        Locale locale = new Locale("en", "US");
+        when(messageSourceHelper.getMessage(eq(TEST_CODE), eq(null), eq(TEST_DEFAULT_VALUE), eq("US"), 
+                eq(LangType.getLang("US", "en")), eq(APP_GROUP), eq(null)))
+                .thenReturn(EXPECTED_MESSAGE);
+
+        // Act
+        String result = appMessageSourceHelper.getMessage(TEST_CODE, TEST_DEFAULT_VALUE, locale);
+
+        // Assert
+        assertEquals(EXPECTED_MESSAGE, result);
+        verify(messageSourceHelper).getMessage(eq(TEST_CODE), eq(null), eq(TEST_DEFAULT_VALUE), eq("US"), 
+                eq(LangType.getLang("US", "en")), eq(APP_GROUP), eq(null));
+    }
+
+    @Test
+    public void testGetMessageWithCodeDefaultValueAndLocaleException() {
+        // Arrange
+        Locale locale = mock(Locale.class);
+        when(locale.getCountry()).thenThrow(new RuntimeException("Locale error"));
+
+        // Act
+        String result = appMessageSourceHelper.getMessage(TEST_CODE, TEST_DEFAULT_VALUE, locale);
+
+        // Assert
+        assertEquals(TEST_DEFAULT_VALUE, result);
+        verify(logger).error(anyString(), any(Exception.class));
+        verifyNoInteractions(messageSourceHelper);
     }
 }
-```
-
-This test class includes:
-
-1. Required dependencies and annotations:
-   - `@RunWith(MockitoJUnitRunner.class)` for Mockito support
-   - `@Mock` for mocking dependencies
-   - `@InjectMocks` for the class under test
-
-2. Setup method:
-   - Creates mock data for testing
-   - Initializes mockConfigItems with sample data
-
-3. Test cases:
-   - `testGetApplicationConfigByLoginId`: Tests the main public method with normal case
-   - `testExtractSettingsFromListUsingReflection`: Tests the private method using reflection
-   - `testGetApplicationConfigByLoginIdWithEmptyConfig`: Tests the public method with empty config list
-   - `testExtractSettingsFromListWithEmptyListUsingReflection`: Tests the private method with empty list
-
-Key features of the tests:
-- Uses Mockito to mock dependencies (AppConfigRepository and CallActivityService)
-- Verifies method interactions using `verify()`
-- Tests both happy path and edge cases
-- Uses reflection to test private method
-- Checks expected outputs and map structures
-- Validates caching behavior indirectly through method call verification
-
-Note: You might need to adjust some assertions based on:
-- Exact behavior of `LangType.getLangIdentifier()`
-- The actual structure of `AppConfigData`
-- Any specific business rules not visible in the provided code
-
-Dependencies required in your pom.xml:
-```xml
-<dependencies>
-    <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>4.13.2</version>
-        <scope>test</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
-        <version>3.12.4</version>
-        <scope>test</scope>
-    </dependency>
-</dependencies>
-```
